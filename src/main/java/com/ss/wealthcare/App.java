@@ -11,6 +11,7 @@ public class App
         System.out.println( "Hello World!" );
         int a = 0;
         System.out.println(a);
+        int k = 10;
         
     }
 }
