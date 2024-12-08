@@ -86,6 +86,7 @@ public class DDUtil
     public static void createTable(Table table) throws Exception
     {
 	String query = constructCreateQuery(table);
+	DDTemplateUtil.createDDTemplate(table);
 
 	try (Connection connection = ConnectionUtil.getConnection(); Statement statement = connection.createStatement())
 	{
