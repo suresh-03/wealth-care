@@ -20,3 +20,6 @@ buildNumber.properties
 
 # Tomcat settings
 server/
+
+# Class files
+build/
