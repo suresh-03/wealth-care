@@ -3,6 +3,8 @@
 	<property name="build.dir" value="build" />
 
 	<path id="maven.classpath">
+	<!-- Replace suresh with your user directory -->
+	<!-- For windows replace fileset dir = "C:/Users/<your-username>/.m2/repository"-->
 		<fileset dir="/home/suresh/.m2/repository">
 			<include name="**/*.jar" />
 		</fileset>
