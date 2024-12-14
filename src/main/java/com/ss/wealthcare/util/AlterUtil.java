@@ -18,7 +18,7 @@ public class AlterUtil {
 	
 	private static final Logger LOGGER = Logger.getLogger(DDUtil.class.getName());
 	
-	public static boolean Alter(Table table,Connection connection,String database) throws Exception {
+	public static boolean alter(Table table,Connection connection,String database) throws Exception {
 		boolean isAltered = false;
 		DatabaseMetaData metaData = connection.getMetaData();
 		if(isRenameColumn(table,metaData)) {
@@ -36,7 +36,7 @@ public class AlterUtil {
 		if(rs.getRow()<columns.size()) {
 			List<String> existColumn = new ArrayList<>();
 			while(rs.next()) {
-				existColumn.add(rs.getString(1));
+				existColumn.add(rs.getString("COLUMN_NAME"));
 			}
 			addColumn(table, connection, database,existColumn);
 			return true;

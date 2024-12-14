@@ -24,7 +24,7 @@ public class DDUtil {
     {
     	try(Connection connection = ConnectionUtil.getConnection()){
     		if(tableExists(table, connection, (String) MYSQL_INFO.get("database"))){
-    		if(AlterUtil.Alter(table,connection,(String) MYSQL_INFO.get("database"))) 
+    		if(AlterUtil.alter(table,connection,(String) MYSQL_INFO.get("database"))) 
     			return;
     		}	
     		else 
