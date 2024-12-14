@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.ss.wealthcare.schema.builder.Column;
@@ -25,6 +26,7 @@ public class DDUtil
 
     public static void xmlParser(Table table) throws Exception
     {
+	DDTemplateUtil.createDDTemplate(table);
 	try (Connection connection = ConnectionUtil.getConnection())
 	{
 	    if (tableExists(table, connection, (String) MYSQL_INFO.get("database")))
@@ -38,6 +40,10 @@ public class DDUtil
 	    {
 		CreateOperationUtil.createTable(table, connection);
 	    }
+	}
+	catch (Exception e)
+	{
+	    LOGGER.log(Level.INFO, "Exception occured while parsing xml", e);
 	}
     }
 
