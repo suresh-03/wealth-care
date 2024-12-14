@@ -16,5 +16,9 @@
 		<max-size>300</max-size>
 		<nullable>NOT NULL</nullable>
 	</column>
+	<column name="EMAIL">
+		<data-type>VARCHAR</data-type>
+		<max-size>300</max-size>le>
+	</column>
 
 </table>
