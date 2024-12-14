@@ -24,7 +24,7 @@ public class CreateOperationUtil
 	query.append("CREATE TABLE" + '\t');
 	query.append(tableName + '\t');
 	query.append("(\n");
-	query.append(DDUtil.formatQuery(columns, null));
+	query.append(DDUtil.formatQuery(columns));
 
 	String revisedQuery = query.substring(0, query.length() - 2);
 	revisedQuery += revisedQuery + "\n);";
