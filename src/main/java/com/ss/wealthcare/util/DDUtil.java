@@ -51,6 +51,7 @@ public class DDUtil {
     	String tableName = table.getName();
     	List<Column> columns = table.getColumns();
 
+
     	StringBuilder query = new StringBuilder();
     	query.append(comQuery("CREATE TABLE", false,true,false));
     	query.append(comQuery(tableName, false,true,false));
