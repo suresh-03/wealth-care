@@ -12,6 +12,7 @@ import java.util.logging.Logger;
 
 import com.ss.wealthcare.schema.builder.Column;
 import com.ss.wealthcare.schema.builder.Table;
+import com.ss.wealthcare.util.AlterUtil;
 
 public class DDUtil {
 	
@@ -32,7 +33,7 @@ public class DDUtil {
     		ResultSet rs = pstmt.executeQuery();
     		if(rs.next()) {
     			if(rs.getInt(1) > 0) {
-    				alterTable(table,connection,(String) MYSQL_INFO.get("database"));
+    				AlterUtil.alterTable(table,connection,(String) MYSQL_INFO.get("database"));
     			}
     			else {
     				
@@ -42,91 +43,7 @@ public class DDUtil {
     	}
     }
     
-    public static void alterTable(Table table ,Connection connection,String Database) throws Exception
-    {
-    	String tableName = table.getName();
-    	List<Column> columns = table.getColumns();
-
-    	StringBuilder query = new StringBuilder();
-    	query.append(comQuery("ALTER TABLE",false,true,false));
-    	query.append(comQuery(tableName,false,false,true));
-    	//Checking which Column Exist
-    	List<String> existColumn = new ArrayList<>();
-    	
-    	String column_query = "SELECT COLUMN_NAME FROM information_schema.columns WHERE table_schema = ? AND table_name = ?";
-		PreparedStatement pstmt = connection.prepareStatement(column_query);
-		pstmt.setString(1,(String) MYSQL_INFO.get("database"));
-		pstmt.setString(2,tableName);
-		
-		ResultSet rs = pstmt.executeQuery();
-		while(rs.next()) {
-			existColumn.add(rs.getString("COLUMN_NAME"));
-		}
-		
-		for (Column column : columns)
-		{
-		    String name = column.getName();
-		    if(existColumn.contains(name)) continue;
-		    String dataType = column.getDataType();
-		    String maxSize = column.getMaxSize();
-		    String nullable = column.getNullable();
-		    String autoIncrement = column.getAutoIncrement();
-		    String primaryKey = column.getPrimaryKey();
-
-		    if (name == null)
-		    {
-
-			throw new Exception("Table name must not be empty");
-		    }
-		    query.append(comQuery("ADD COLUMN",false,true,false)+comQuery(name,false,true,false));
-		    if (dataType == null)
-		    {
-			throw new Exception("Datatype must not be empty");
-		    }
-		    query.append(dataType);
-		    if (maxSize != null)
-		    {
-			query.append(comQuery("(" + maxSize + ")",false,true,false));
-		    }
-		    else
-		    {
-			query.append(" ");
-		    }
-		    if (nullable != null)
-		    {
-			query.append(comQuery(nullable, false, true, false));
-		    }
-		    if (autoIncrement != null)
-		    {
-			query.append(comQuery(autoIncrement, false, true, false));
-		    }
-		    if (primaryKey != null)
-		    {
-			query.append(comQuery(primaryKey, false, true, false));
-		    }
-		    if (query.charAt(query.length() - 1) != ',')
-		    {
-			query.append(",");
-		    }
-		    query.append("\n");
-		}   
-		String revisedQuery = query.substring(0, query.length() - 2);
-		revisedQuery = revisedQuery + ';';
-		LOGGER.log(Level.INFO, "SQL ALTER QUERY: {0}", revisedQuery);
-    	
-    	try
-    	{
-    		Statement statement = connection.createStatement();
-    	    statement.execute(revisedQuery);
-    	    LOGGER.log(Level.INFO, "{0} table created successfully!", table.getDisplayName());
-    	}
-    	catch (Exception e)
-    	{
-    	    LOGGER.log(Level.INFO, "Exception occurred while creating table", e);
-    	    throw e;
-    	}
-    	
-    }
+    
     
     public static void createTable(Table table,Connection connection) throws Exception
     {
