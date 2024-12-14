@@ -12,6 +12,7 @@ public class DirectoryUtil
     public static final String TEMPLATE = "template/";
     public static final String XML = "xml/";
     public static final String CONF = "conf/";
+    public static final String WEALTHCARE_PACKAGE = "com/ss/wealthcare/";
 
     // Common Directories
     public static final String MAIN_DIR = SRC + MAIN;

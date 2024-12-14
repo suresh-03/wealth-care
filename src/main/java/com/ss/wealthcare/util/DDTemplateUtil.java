@@ -12,11 +12,11 @@ import com.ss.wealthcare.schema.builder.Table;
 
 public class DDTemplateUtil
 {
-    public static final String TEMPLATE_DIR = DirectoryUtil.RESOURCES_DIR + DirectoryUtil.SCHEMA
-	    + DirectoryUtil.TEMPLATE;
+    public static final String TEMPLATE_DIR = DirectoryUtil.JAVA_DIR + DirectoryUtil.WEALTHCARE_PACKAGE
+	    + DirectoryUtil.SCHEMA + DirectoryUtil.TEMPLATE;
 
-    public static final String CLASS_TEMPLATE = "public static final class ";
-    public static final String PACKAGE_TEMPLATE = "package com.ss.wealthcare.util.template";
+    public static final String CLASS_TEMPLATE = "public final class ";
+    public static final String PACKAGE_TEMPLATE = "package com.ss.wealthcare.schema.template;";
     public static final char OPEN_CURLY = '{';
     public static final char CLOSE_CURLY = '}';
     public static final char SEMICOLON = ';';
@@ -31,11 +31,46 @@ public class DDTemplateUtil
 
     public static void createDDTemplate(Table table)
     {
-	String fileName = table.getName();
-	File file = new File(TEMPLATE_DIR + fileName + ".java");
+	String fileName = table.getName().toUpperCase() + ".java";
+	File directory = new File(TEMPLATE_DIR);
+
+	if (directory.isDirectory())
+	{
+	    if (directory.mkdir())
+	    {
+		LOGGER.log(Level.INFO, "Directory {0} created", directory);
+	    }
+	    else
+	    {
+		LOGGER.log(Level.INFO, "Directory {0} is already exists", directory);
+
+	    }
+	}
+	else
+	{
+	    LOGGER.log(Level.INFO, "{0} is not a Directory", directory);
+	}
+	File file = new File(TEMPLATE_DIR + fileName);
 
 	try (BufferedWriter writer = new BufferedWriter(new FileWriter(file)))
 	{
+	    if (file.isFile())
+	    {
+		if (file.createNewFile())
+		{
+		    LOGGER.log(Level.INFO, "File {0} is created", file);
+		}
+		else
+		{
+		    LOGGER.log(Level.INFO, "File {0} is already exists", file);
+
+		}
+	    }
+	    else
+	    {
+		LOGGER.log(Level.INFO, "{0} is not a File", file);
+
+	    }
 	    createDDTemplate(writer, table);
 	}
 	catch (Exception e)
@@ -49,10 +84,14 @@ public class DDTemplateUtil
     {
 	String className = table.getName().toUpperCase();
 	String qualifiedClassName = CLASS_TEMPLATE + className;
-	final String CLASS = PACKAGE_TEMPLATE + NEWLINE + NEWLINE + SEMICOLON + qualifiedClassName + SPACE + NEWLINE
-		+ OPEN_CURLY + NEWLINE;
+	final String CLASS = PACKAGE_TEMPLATE + NEWLINE + NEWLINE + qualifiedClassName + SPACE + NEWLINE + OPEN_CURLY
+		+ NEWLINE;
+
+	final String CONSTRUCTOR = TAB + "private " + className + "()" + NEWLINE + TAB + OPEN_CURLY + NEWLINE + TAB
+		+ CLOSE_CURLY + NEWLINE + NEWLINE;
 
 	writer.write(CLASS);
+	writer.write(CONSTRUCTOR);
 
 	List<Column> columns = table.getColumns();
 

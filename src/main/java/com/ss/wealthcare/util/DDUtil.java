@@ -40,6 +40,7 @@ public class DDUtil {
     	String tableName = table.getName();
     	List<Column> columns = table.getColumns();
 
+
     	StringBuilder query = new StringBuilder();
     	query.append(formatQuery("CREATE TABLE", false,true,false));
     	query.append(formatQuery(tableName, false,true,false));

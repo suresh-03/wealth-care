@@ -17,3 +17,9 @@ buildNumber.properties
 .classpath
 # Eclipse project settings
 .settings
+
+# Tomcat settings
+server/
+
+# Class files
+build/
