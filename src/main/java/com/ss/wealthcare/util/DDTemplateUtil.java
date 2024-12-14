@@ -87,7 +87,11 @@ public class DDTemplateUtil
 	final String CLASS = PACKAGE_TEMPLATE + NEWLINE + NEWLINE + qualifiedClassName + SPACE + NEWLINE + OPEN_CURLY
 		+ NEWLINE;
 
+	final String CONSTRUCTOR = TAB + "private " + className + "()" + NEWLINE + TAB + OPEN_CURLY + NEWLINE + TAB
+		+ CLOSE_CURLY + NEWLINE + NEWLINE;
+
 	writer.write(CLASS);
+	writer.write(CONSTRUCTOR);
 
 	List<Column> columns = table.getColumns();
 
