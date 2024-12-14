@@ -1,4 +1,4 @@
-package com.ss.wealthcare.util;
+package com.ss.wealthcare.util.file;
 
 import java.io.File;
 import java.util.ArrayList;
