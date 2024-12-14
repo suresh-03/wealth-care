@@ -1,4 +1,4 @@
-package com.ss.wealthcare.util;
+package com.ss.wealthcare.util.file;
 
 public class DirectoryUtil
 {

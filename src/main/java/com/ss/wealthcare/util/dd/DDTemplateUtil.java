@@ -1,4 +1,4 @@
-package com.ss.wealthcare.util;
+package com.ss.wealthcare.util.dd;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -9,6 +9,7 @@ import java.util.logging.Logger;
 
 import com.ss.wealthcare.schema.builder.Column;
 import com.ss.wealthcare.schema.builder.Table;
+import com.ss.wealthcare.util.file.DirectoryUtil;
 
 public class DDTemplateUtil
 {

@@ -1,6 +1,6 @@
 package com.ss.wealthcare.schema.template;
 
-public final class USER
+public final class USER 
 {
     private USER()
     {

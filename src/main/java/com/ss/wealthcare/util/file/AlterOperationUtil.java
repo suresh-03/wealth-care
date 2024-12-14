@@ -1,4 +1,4 @@
-package com.ss.wealthcare.util;
+package com.ss.wealthcare.util.file;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -14,7 +14,7 @@ import java.util.logging.Logger;
 import com.ss.wealthcare.schema.builder.Column;
 import com.ss.wealthcare.schema.builder.Table;
 
-public class AlterUtil {
+public class AlterOperationUtil {
 	
 	private static final Logger LOGGER = Logger.getLogger(DDUtil.class.getName());
 	

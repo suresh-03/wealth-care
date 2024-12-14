@@ -1,4 +1,4 @@
-package com.ss.wealthcare.util;
+package com.ss.wealthcare.util.dd;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -12,6 +12,9 @@ import java.util.logging.Logger;
 
 import com.ss.wealthcare.schema.builder.Column;
 import com.ss.wealthcare.schema.builder.Table;
+import com.ss.wealthcare.util.conf.YamlParserUtil;
+import com.ss.wealthcare.util.dd.ConnectionUtil;
+import com.ss.wealthcare.util.file.DirectoryUtil;
 
 public class DDUtil {
 	

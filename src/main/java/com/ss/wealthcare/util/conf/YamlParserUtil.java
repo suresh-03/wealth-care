@@ -1,4 +1,4 @@
-package com.ss.wealthcare.util;
+package com.ss.wealthcare.util.conf;
 
 import java.io.FileInputStream;
 import java.io.IOException;

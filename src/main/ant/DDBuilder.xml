@@ -1,11 +1,12 @@
-<project name="wealthcare" default="run" basedir="../../../">
-	<property name="src.dir" value="src/main/java" />
-	<property name="build.dir" value="build" />
+<project name="wealthcare" default="run"
+	basedir="../../../../../">
+	<property
+		file="eclipse-workspace/wealthcare/src/main/ant/ant.properties" />
 
 	<path id="maven.classpath">
-	<!-- Replace suresh with your user directory -->
-	<!-- For windows replace fileset dir = "C:/Users/<your-username>/.m2/repository"-->
-		<fileset dir="/home/suresh/.m2/repository">
+		<!-- Replace suresh with your user directory -->
+		<!-- For windows replace fileset dir = "C:/Users/<your-username>/.m2/repository" -->
+		<fileset dir="${dependency.dir}">
 			<include name="**/*.jar" />
 		</fileset>
 	</path>
@@ -22,8 +23,8 @@
 	</target>
 
 	<target name="run" depends="compile">
-		<java classname="com.ss.wealthcare.schema.builder.SchemaBuilder"
-			fork="true">
+		<java classname="${schemabuilder.class}" fork="false"
+			failonerror="true">
 			<classpath>
 				<path refid="maven.classpath" />
 				<pathelement path="${build.dir}" />
