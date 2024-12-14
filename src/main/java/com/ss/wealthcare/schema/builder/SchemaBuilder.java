@@ -35,7 +35,7 @@ public class SchemaBuilder
 	    for (File schemaFile : schemaFiles)
 	    {
 		Table table = (Table) unmarsheller.unmarshal(schemaFile);
-		DDUtil.createTable(table);
+		DDUtil.xmlParser(table);
 	    }
 	}
 
