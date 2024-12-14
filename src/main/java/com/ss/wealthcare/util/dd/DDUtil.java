@@ -59,6 +59,11 @@ public class DDUtil
 	return false;
     }
 
+    public static String formatQuery(List<Column> columns) throws Exception
+    {
+	return formatQuery(columns, null);
+    }
+
     public static String formatQuery(List<Column> columns, List<String> existingColumns) throws Exception
     {
 	StringBuilder query = new StringBuilder();
@@ -76,10 +81,12 @@ public class DDUtil
 
 		throw new Exception("Table name must not be empty");
 	    }
-	    if (existingColumns != null && existingColumns.contains(name))
+	    boolean columnExist = existingColumns != null;
+	    if (columnExist && existingColumns.contains(name))
 	    {
 		continue;
 	    }
+	    query.append(columnExist ? "ADD COLUMN " : "");
 	    query.append(name + ' ');
 	    if (dataType == null)
 	    {
