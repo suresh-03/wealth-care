@@ -1,7 +1,5 @@
 package com.ss.wealthcare.util.dd.operation;
 
-import static com.ss.wealthcare.util.dd.DDUtil.buildQuery;
-
 import java.sql.Connection;
 import java.sql.Statement;
 import java.util.List;
@@ -10,6 +8,7 @@ import java.util.logging.Logger;
 
 import com.ss.wealthcare.schema.builder.Column;
 import com.ss.wealthcare.schema.builder.Table;
+import com.ss.wealthcare.util.dd.DDUtil;
 
 public class CreateOperationUtil
 {
@@ -22,58 +21,13 @@ public class CreateOperationUtil
 	List<Column> columns = table.getColumns();
 
 	StringBuilder query = new StringBuilder();
-	query.append(buildQuery("CREATE TABLE", false, true, false));
-	query.append(buildQuery(tableName, false, true, false));
-	query.append(buildQuery("(", false, false, true));
+	query.append("CREATE TABLE" + '\t');
+	query.append(tableName + '\t');
+	query.append("(\n");
+	query.append(DDUtil.formatQuery(columns, null));
 
-	for (Column column : columns)
-	{
-	    String name = column.getName();
-	    String dataType = column.getDataType();
-	    String maxSize = column.getMaxSize();
-	    String nullable = column.getNullable();
-	    String autoIncrement = column.getAutoIncrement();
-	    String primaryKey = column.getPrimaryKey();
-
-	    if (name == null)
-	    {
-
-		throw new Exception("Table name must not be empty");
-	    }
-	    query.append(buildQuery(name, false, true, false));
-	    if (dataType == null)
-	    {
-		throw new Exception("Datatype must not be empty");
-	    }
-	    query.append(dataType);
-	    if (maxSize != null)
-	    {
-		query.append(buildQuery("(" + maxSize + ")", false, true, false));
-	    }
-	    else
-	    {
-		query.append(buildQuery("", false, true, false));
-	    }
-	    if (nullable != null)
-	    {
-		query.append(buildQuery(nullable, false, true, false));
-	    }
-	    if (autoIncrement != null)
-	    {
-		query.append(buildQuery(autoIncrement, false, true, false));
-	    }
-	    if (primaryKey != null)
-	    {
-		query.append(buildQuery(primaryKey, false, true, false));
-	    }
-	    if (query.charAt(query.length() - 1) != ',')
-	    {
-		query.append(',');
-	    }
-	    query.append("\n");
-	}
 	String revisedQuery = query.substring(0, query.length() - 2);
-	revisedQuery = buildQuery(revisedQuery, false, false, true) + ")" + ";";
+	revisedQuery += revisedQuery + "\n);";
 	LOGGER.log(Level.INFO, "SQL CREATE QUERY: {0}", revisedQuery);
 
 	// Query Execution
