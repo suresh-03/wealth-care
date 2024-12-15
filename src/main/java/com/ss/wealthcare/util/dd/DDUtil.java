@@ -87,7 +87,7 @@ public class DDUtil
 
 		throw new Exception("Table name must not be empty");
 	    }
-	    boolean columnExist = existingColumns != null;
+	    boolean columnExist = existingColumns != null && !existingColumns.isEmpty();
 	    if (columnExist && existingColumns.contains(name))
 	    {
 		continue;

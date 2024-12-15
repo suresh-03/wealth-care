@@ -56,7 +56,11 @@
 			<artifactId>HikariCP</artifactId>
 			<version>6.2.1</version>
 		</dependency>
-
-
+		<!-- https://mvnrepository.com/artifact/org.jooq/jooq -->
+		<dependency>
+			<groupId>org.jooq</groupId>
+			<artifactId>jooq</artifactId>
+			<version>3.19.16</version>
+		</dependency>
 	</dependencies>
 </project>
