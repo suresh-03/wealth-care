@@ -23,3 +23,7 @@ server/
 
 # Class files
 build/
+
+# Webapp
+src/main/webapps/classes/
+src/main/webapps/lib/
