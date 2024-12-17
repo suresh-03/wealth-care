@@ -16,112 +16,106 @@ import com.ss.wealthcare.util.dd.operation.AlterOperationUtil;
 import com.ss.wealthcare.util.dd.operation.CreateOperationUtil;
 import com.ss.wealthcare.util.file.DirectoryUtil;
 
-public class DDUtil
-{
+public class DDUtil {
 
-    private static final Logger LOGGER = Logger.getLogger(DDUtil.class.getName());
+	private static final Logger LOGGER = Logger.getLogger(DDUtil.class.getName());
 
-    private static final Map<String, Object> MYSQL_INFO = YamlParserUtil
-	    .loadYamlFile(DirectoryUtil.CONF_DIR + DirectoryUtil.MYSQL + "conf.yaml");
+	private static final Map<String, Object> MYSQL_INFO = YamlParserUtil
+			.loadYamlFile(DirectoryUtil.CONF_DIR + DirectoryUtil.MYSQL + "conf.yaml");
 
-    public static void xmlParser(Table table) throws Exception
-    {
-	DDTemplateUtil.createDDTemplate(table);
-	try (Connection connection = ConnectionUtil.getConnection())
-	{
-	    if (tableExists(table, connection, (String) MYSQL_INFO.get("database")))
-	    {
-		if (AlterOperationUtil.alterTable(table, connection, (String) MYSQL_INFO.get("database")))
-		{
-		    return;
+	public static void xmlParser(Table table) throws Exception {
+		DDTemplateUtil.createDDTemplate(table);
+		try (Connection connection = ConnectionUtil.getConnection()) {
+			if (tableExists(table, connection, (String) MYSQL_INFO.get("database"))) {
+				if (AlterOperationUtil.alterTable(table, connection, (String) MYSQL_INFO.get("database"))) {
+					return;
+				}
+			} else {
+				CreateOperationUtil.createTable(table, connection);
+			}
+		} catch (Exception e) {
+			LOGGER.log(Level.INFO, "Exception occured while parsing xml", e);
 		}
-	    }
-	    else
-	    {
-		CreateOperationUtil.createTable(table, connection);
-	    }
 	}
-	catch (Exception e)
-	{
-	    LOGGER.log(Level.INFO, "Exception occured while parsing xml", e);
+
+	public static boolean tableExists(Table table, Connection connection, String database) throws SQLException {
+
+		String query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?";
+
+		PreparedStatement pstmt = connection.prepareStatement(query);
+		pstmt.setString(1, database);
+		pstmt.setString(2, table.getName());
+		try (ResultSet rs = pstmt.executeQuery()) {
+			if (rs.next()) {
+				return rs.getInt(1) > 0;
+			}
+		}
+		return false;
 	}
-    }
 
-    public static boolean tableExists(Table table, Connection connection, String database) throws SQLException
-    {
-
-	String query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?";
-
-	PreparedStatement pstmt = connection.prepareStatement(query);
-	pstmt.setString(1, database);
-	pstmt.setString(2, table.getName());
-	try (ResultSet rs = pstmt.executeQuery())
-	{
-	    if (rs.next())
-	    {
-		return rs.getInt(1) > 0;
-	    }
+	public static String formatQuery(List<Column> columns) throws Exception {
+		return formatQuery(columns, null, false);
 	}
-	return false;
-    }
 
-    public static String formatQuery(List<Column> columns) throws Exception
-    {
-	return formatQuery(columns, null);
-    }
+	public static String formatQuery(List<Column> columns, List<String> existingColumns, boolean remove)
+			throws Exception {
+		StringBuilder query = new StringBuilder();
+		for (Column column : columns) {
+			String name = column.getName();
+			String dataType = column.getDataType();
+			String maxSize = column.getMaxSize();
+			String nullable = column.getNullable();
+			String autoIncrement = column.getAutoIncrement();
+			String primaryKey = column.getPrimaryKey();
 
-    public static String formatQuery(List<Column> columns, List<String> existingColumns) throws Exception
-    {
-	StringBuilder query = new StringBuilder();
-	for (Column column : columns)
-	{
-	    String name = column.getName();
-	    String dataType = column.getDataType();
-	    String maxSize = column.getMaxSize();
-	    String nullable = column.getNullable();
-	    String autoIncrement = column.getAutoIncrement();
-	    String primaryKey = column.getPrimaryKey();
+			if (name == null) {
 
-	    if (name == null)
-	    {
-
-		throw new Exception("Table name must not be empty");
-	    }
-	    boolean columnExist = existingColumns != null && !existingColumns.isEmpty();
-	    if (columnExist && existingColumns.contains(name))
-	    {
-		continue;
-	    }
-	    query.append(columnExist ? "ADD COLUMN " : "");
-	    query.append(name + ' ');
-	    if (dataType == null)
-	    {
-		throw new Exception("Datatype must not be empty");
-	    }
-	    query.append(dataType);
-	    if (maxSize != null)
-	    {
-		query.append('(' + maxSize + ')');
-	    }
-	    if (nullable != null)
-	    {
-		query.append(nullable + ' ');
-	    }
-	    if (autoIncrement != null)
-	    {
-		query.append(autoIncrement + ' ');
-	    }
-	    if (primaryKey != null)
-	    {
-		query.append(primaryKey + ' ');
-	    }
-	    if (query.charAt(query.length() - 1) != ',')
-	    {
-		query.append(',');
-	    }
-	    query.append('\n');
+				throw new Exception("Table name must not be empty");
+			}
+			if (!remove) {
+				boolean columnExist = existingColumns != null && !existingColumns.isEmpty();
+				if (columnExist && existingColumns.contains(name)) {
+					continue;
+				}
+				query.append(columnExist ? "ADD COLUMN " : "");
+			} else {
+				if (existingColumns.contains(name)) {
+					query.append("DROP COLUMN ");
+					query.append(name + ' ');
+					if (query.charAt(query.length() - 1) != ',') {
+						query.append(',');
+					}
+					query.append('\n');
+					continue;
+				} else {
+					continue;
+				}
+			}
+			query.append(name + ' ');
+			if (dataType == null) {
+				throw new Exception("Datatype must not be empty");
+			}
+			query.append(dataType);
+			if (maxSize != null) {
+				query.append('(' + maxSize + ')' + ' ');
+			} else {
+				query.append(' ');
+			}
+			if (nullable != null) {
+				query.append(nullable + ' ');
+			}
+			if (autoIncrement != null) {
+				query.append(autoIncrement + ' ');
+			}
+			if (primaryKey != null) {
+				query.append(primaryKey + ' ');
+			}
+			if (query.charAt(query.length() - 1) != ',') {
+				query.append(',');
+			}
+			query.append('\n');
+		}
+		return query.toString();
 	}
-	return query.toString();
-    }
 
 }
