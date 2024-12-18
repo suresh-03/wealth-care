@@ -10,5 +10,4 @@ public final class USER
     public static final String USER_NAME = "USER_NAME";
     public static final String PASSWORD = "PASSWORD";
     public static final String GENDER = "GENDER";
-    public static final String EMAIL = "EMAIL";
 }

@@ -54,11 +54,10 @@ public class DDUtil {
 	}
 
 	public static String formatQuery(List<Column> columns) throws Exception {
-		return formatQuery(columns, null, false);
+		return formatQuery(columns, null);
 	}
 
-	public static String formatQuery(List<Column> columns, List<String> existingColumns, boolean remove)
-			throws Exception {
+	public static String formatQuery(List<Column> columns, List<String> existingColumns) throws Exception {
 		StringBuilder query = new StringBuilder();
 		for (Column column : columns) {
 			String name = column.getName();
@@ -72,25 +71,12 @@ public class DDUtil {
 
 				throw new Exception("Table name must not be empty");
 			}
-			if (!remove) {
-				boolean columnExist = existingColumns != null && !existingColumns.isEmpty();
-				if (columnExist && existingColumns.contains(name)) {
-					continue;
-				}
-				query.append(columnExist ? "ADD COLUMN " : "");
-			} else {
-				if (existingColumns.contains(name)) {
-					query.append("DROP COLUMN ");
-					query.append(name + ' ');
-					if (query.charAt(query.length() - 1) != ',') {
-						query.append(',');
-					}
-					query.append('\n');
-					continue;
-				} else {
-					continue;
-				}
+			boolean columnExist = existingColumns != null && !existingColumns.isEmpty();
+			if (columnExist && existingColumns.contains(name)) {
+				continue;
 			}
+			query.append(columnExist ? "ADD COLUMN " : "");
+
 			query.append(name + ' ');
 			if (dataType == null) {
 				throw new Exception("Datatype must not be empty");
@@ -115,6 +101,30 @@ public class DDUtil {
 			}
 			query.append('\n');
 		}
+		return query.toString();
+	}
+
+	public static String modifyQuery(String name, String datatype, String maxSize, String nullable,
+			String autoIncrement, String primaryKey) {
+		StringBuffer query = new StringBuffer();
+		query.append("MODIFY COLUMN ");
+		if (name != null) {
+			query.append(name);
+			if (maxSize != null) {
+				query.append("(" + maxSize + ")");
+			}
+			query.append(' ');
+		}
+		if (nullable != null) {
+			query.append(nullable + " ");
+		}
+		if (autoIncrement != null) {
+			query.append(autoIncrement + " ");
+		}
+		if (primaryKey != null) {
+			query.append(primaryKey + " ");
+		}
+
 		return query.toString();
 	}
 

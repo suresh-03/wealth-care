@@ -3,6 +3,7 @@ package com.ss.wealthcare.util.dd.operation;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,14 +46,12 @@ public class AlterOperationUtil {
 			existColumn.add(rs.getString("COLUMN_NAME"));
 			noColumns++;
 		}
-		System.out.println(noColumns);
 		if (noColumns < columns.size()) {
 
 			addColumn(table, connection, database, existColumn);
 			return true;
 		}
 		if (noColumns > columns.size()) {
-
 			removeColumn(table, connection, database, existColumn);
 			return true;
 		}
@@ -68,15 +67,13 @@ public class AlterOperationUtil {
 				+ "' AND TABLE_NAME = '" + table.getName() + "'";
 		Statement stmt = connection.createStatement();
 		ResultSet rs = stmt.executeQuery(query);
-
 		int i = 0;
-		while (rs.next()) {
+		while (rs.next() && i < columns.size()) {
 			if (!columns.get(i).getName().equals(rs.getString("COLUMN_NAME"))) {
 				String renameQuery = renameColumn(table, rs.getString("COLUMN_NAME"), columns.get(i).getName(),
-						columns.get(i).getDataType());
-				System.out.println(renameQuery);
-				stmt.execute(renameQuery);
-				stmt.close();
+						columns.get(i).getDataType(), columns.get(i).getMaxSize());
+				Statement stmt1 = connection.createStatement();
+				stmt1.execute(renameQuery);
 				isAltered = true;
 			}
 			i++;
@@ -84,7 +81,18 @@ public class AlterOperationUtil {
 		return isAltered;
 	}
 
-	public static boolean isModifyColumn() {
+	public static boolean isModifyColumn(Table table, DatabaseMetaData metaData, Connection connection, String database)
+			throws SQLException {
+		List<Column> columns = table.getColumns();
+//		String query = "SELECT COLUMN_NAME, FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '" + database
+//				+ "' AND TABLE_NAME = '" + table.getName() + "'";
+//		Statement stmt = connection.createStatement();
+//		ResultSet rs = stmt.executeQuery(query);
+//		int i = 0;
+//		while (rs.next() && i < columns.size()) {
+//			}
+//			i++;
+//		}
 		return true;
 	}
 
@@ -96,7 +104,7 @@ public class AlterOperationUtil {
 		StringBuilder query = new StringBuilder();
 		query.append("ALTER TABLE ");
 		query.append(tableName + '\n');
-		query.append(DDUtil.formatQuery(columns, existColumn, false));
+		query.append(DDUtil.formatQuery(columns, existColumn));
 
 		String revisedQuery = query.substring(0, query.length() - 2);
 		revisedQuery = revisedQuery + ';';
@@ -122,18 +130,20 @@ public class AlterOperationUtil {
 		query.append("ALTER TABLE ");
 		query.append(tableName + '\n');
 		List<String> removeColumn = new ArrayList<>();
+
 		for (Column column : columns) {
-			if (!existColumn.contains(column.getName())) {
-				removeColumn.add(column.getName());
-			}
+			removeColumn.add(column.getName());
 		}
 
-		query.append(DDUtil.formatQuery(columns, removeColumn, true));
+		for (String exist : existColumn) {
+			if (!removeColumn.contains(exist)) {
+				query.append("DROP COLUMN " + exist + ",\n");
+			}
+		}
 
 		String revisedQuery = query.substring(0, query.length() - 2);
 		revisedQuery = revisedQuery + ';';
 		LOGGER.log(Level.INFO, "SQL ALTER QUERY: {0}", revisedQuery);
-		System.out.println(revisedQuery);
 
 		try {
 			Statement statement = connection.createStatement();
@@ -146,14 +156,26 @@ public class AlterOperationUtil {
 
 	}
 
-	public static String renameColumn(Table table, String oldName, String newName, String dataType) throws Exception {
+	public static String renameColumn(Table table, String oldName, String newName, String dataType, String maxsize)
+			throws Exception {
 		StringBuilder query = new StringBuilder();
 		query.append("ALTER TABLE ");
 		query.append(table.getName() + "\n");
 		query.append("CHANGE " + oldName + " " + newName + " " + dataType);
-
+		if (maxsize != null) {
+			query.append("(" + maxsize + ")");
+		}
 		return query.toString();
 
 	}
 
+}
+
+class Constraints {
+	String name;
+	String dataType;
+	String maxsize;
+	String nullable;
+	String autoIncrement;
+	String primarykey;
 }
