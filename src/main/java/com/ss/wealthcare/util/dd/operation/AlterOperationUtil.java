@@ -1,9 +1,6 @@
 package com.ss.wealthcare.util.dd.operation;
 
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,170 +9,151 @@ import java.util.logging.Logger;
 
 import com.ss.wealthcare.schema.builder.Column;
 import com.ss.wealthcare.schema.builder.Table;
-import com.ss.wealthcare.util.dd.DDUtil;
 
 public class AlterOperationUtil {
 
-	private static final Logger LOGGER = Logger.getLogger(DDUtil.class.getName());
+	private static final Logger LOGGER = Logger.getLogger(AlterOperationUtil.class.getName());
 
-	public static boolean alterTable(Table table, Connection connection, String database) throws Exception {
-		boolean isAltered = false;
-		DatabaseMetaData metaData = connection.getMetaData();
-		if (isRenameColumn(table, metaData, connection, database)) {
-			isAltered = true;
-		}
-		if (isNewColumn(table, metaData, connection, database)) {
-			isAltered = true;
-		}
+	public static void alterTable(Table table, Connection connection, List<Column> existColums) throws Exception {
 
-		return isAltered;
-	}
+		List<String> removedColumns = new ArrayList<String>();
+		List<Column> addedColumns = table.getColumns();
+		List<String> existColumnName = new ArrayList<String>();
+		for (Column column : existColums)
+			existColumnName.add(column.getName());
 
-	public static boolean isNewColumn(Table table, DatabaseMetaData metaData, Connection connection, String database)
-			throws Exception {
+		boolean remove = addedColumns.size() < existColums.size() ? true : false;
 
-		List<Column> columns = table.getColumns();
-		String query = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '" + database
-				+ "' AND TABLE_NAME = '" + table.getName() + "'";
-		Statement stmt = connection.createStatement();
-		ResultSet rs = stmt.executeQuery(query);
+		int last = addedColumns.size() < existColums.size() ? addedColumns.size() : existColums.size();
 
-		int noColumns = 0;
-		List<String> existColumn = new ArrayList<>();
-		while (rs.next()) {
-			existColumn.add(rs.getString("COLUMN_NAME"));
-			noColumns++;
-		}
-		if (noColumns < columns.size()) {
-
-			addColumn(table, connection, database, existColumn);
-			return true;
-		}
-		if (noColumns > columns.size()) {
-			removeColumn(table, connection, database, existColumn);
-			return true;
-		}
-
-		return false;
-	}
-
-	public static boolean isRenameColumn(Table table, DatabaseMetaData metaData, Connection connection, String database)
-			throws Exception {
-		boolean isAltered = false;
-		List<Column> columns = table.getColumns();
-		String query = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '" + database
-				+ "' AND TABLE_NAME = '" + table.getName() + "'";
-		Statement stmt = connection.createStatement();
-		ResultSet rs = stmt.executeQuery(query);
-		int i = 0;
-		while (rs.next() && i < columns.size()) {
-			if (!columns.get(i).getName().equals(rs.getString("COLUMN_NAME"))) {
-				String renameQuery = renameColumn(table, rs.getString("COLUMN_NAME"), columns.get(i).getName(),
-						columns.get(i).getDataType(), columns.get(i).getMaxSize());
-				Statement stmt1 = connection.createStatement();
-				stmt1.execute(renameQuery);
-				isAltered = true;
+		for (int i = 0; i < last; i++) {
+			if (addedColumns.get(i).getName().equals(existColums.get(i).getName())) {
+				if (!constraintChecker(addedColumns.get(i), existColums.get(i))) {
+					modifyConstraint(table.getName(), addedColumns.get(i), connection);
+				}
+				addedColumns.remove(i);
+			} else if (addedColumns.get(i).getOldName().equals(existColums.get(i).getName())) {
+				rename(table.getName(), addedColumns.get(i), connection);
+				if (!constraintChecker(addedColumns.get(i), existColums.get(i))) {
+					modifyConstraint(table.getName(), addedColumns.get(i), connection);
+				}
+				addedColumns.remove(i);
+			} else if (existColumnName.contains(addedColumns.get(i).getName())) {
+//				changeOrder();
+				if (!constraintChecker(addedColumns.get(i), existColums.get(i))) {
+					modifyConstraint(table.getName(), addedColumns.get(i), connection);
+				}
+				addedColumns.remove(i);
+			} else if (existColumnName.contains(addedColumns.get(i).getOldName())) {
+//				changeOrder();
+				rename(table.getName(), addedColumns.get(i), connection);
+				if (!constraintChecker(addedColumns.get(i), existColums.get(i))) {
+					modifyConstraint(table.getName(), addedColumns.get(i), connection);
+				}
+				addedColumns.remove(i);
 			}
-			i++;
 		}
-		return isAltered;
+
+		if (!addedColumns.isEmpty()) {
+//			addColumns(table.getName(),addedColumns);
+		}
+
+		if (remove) {
+			for (int i = last; i < existColums.size(); i++) {
+				removedColumns.add(existColums.get(i).getName());
+			}
+//			removeColumns(table.getName(),removedColumns);
+		}
+
 	}
 
-	public static boolean isModifyColumn(Table table, DatabaseMetaData metaData, Connection connection, String database)
-			throws SQLException {
-		List<Column> columns = table.getColumns();
-//		String query = "SELECT COLUMN_NAME, FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '" + database
-//				+ "' AND TABLE_NAME = '" + table.getName() + "'";
-//		Statement stmt = connection.createStatement();
-//		ResultSet rs = stmt.executeQuery(query);
-//		int i = 0;
-//		while (rs.next() && i < columns.size()) {
-//			}
-//			i++;
-//		}
+	public static boolean constraintChecker(Column added, Column exist) {
+		if (!added.getDataType().equals(exist.getDataType()))
+			return false;
+		if (!added.getMaxSize().equals(exist.getMaxSize()))
+			return false;
+		if (!added.getNullable().equals(exist.getNullable()))
+			return false;
+		if (!added.getAutoIncrement().equals(exist.getAutoIncrement()))
+			return false;
+		if (!added.getPrimaryKey().equals(exist.getPrimaryKey()))
+			return false;
+
 		return true;
 	}
 
-	public static void addColumn(Table table, Connection connection, String database, List<String> existColumn)
-			throws Exception {
-		String tableName = table.getName();
-		List<Column> columns = table.getColumns();
-
-		StringBuilder query = new StringBuilder();
-		query.append("ALTER TABLE ");
-		query.append(tableName + '\n');
-		query.append(DDUtil.formatQuery(columns, existColumn));
+	public static void modifyConstraint(String tableName, Column column, Connection connection) throws Exception {
+		StringBuffer query = new StringBuffer();
+		query.append("ALTER TABLE " + tableName + " \nMODIFY COLUMN ");
+		query.append(formatQuery(column, false));
 
 		String revisedQuery = query.substring(0, query.length() - 2);
-		revisedQuery = revisedQuery + ';';
-		LOGGER.log(Level.INFO, "SQL ALTER QUERY: {0}", revisedQuery);
-
 		try {
 			Statement statement = connection.createStatement();
 			statement.execute(revisedQuery);
-			LOGGER.log(Level.INFO, "{0} Column added successfully!", table.getDisplayName());
+			LOGGER.log(Level.INFO, "{0} Column Modified successfully!", tableName);
 		} catch (Exception e) {
-			LOGGER.log(Level.INFO, "Exception occurred while creating table", e);
+			LOGGER.log(Level.INFO, "Exception occurred while Modifying Column", e);
 			throw e;
 		}
 
 	}
 
-	public static void removeColumn(Table table, Connection connection, String database, List<String> existColumn)
-			throws Exception {
-		String tableName = table.getName();
-		List<Column> columns = table.getColumns();
-
-		StringBuilder query = new StringBuilder();
-		query.append("ALTER TABLE ");
-		query.append(tableName + '\n');
-		List<String> removeColumn = new ArrayList<>();
-
-		for (Column column : columns) {
-			removeColumn.add(column.getName());
-		}
-
-		for (String exist : existColumn) {
-			if (!removeColumn.contains(exist)) {
-				query.append("DROP COLUMN " + exist + ",\n");
-			}
-		}
+	public static void rename(String tableName, Column column, Connection connection) throws Exception {
+		StringBuffer query = new StringBuffer();
+		query.append("ALTER TABLE " + tableName + " \nCHANGE ");
+		query.append(formatQuery(column, false));
 
 		String revisedQuery = query.substring(0, query.length() - 2);
-		revisedQuery = revisedQuery + ';';
-		LOGGER.log(Level.INFO, "SQL ALTER QUERY: {0}", revisedQuery);
-
 		try {
 			Statement statement = connection.createStatement();
 			statement.execute(revisedQuery);
-			LOGGER.log(Level.INFO, "{0} Column removed successfully!", table.getDisplayName());
+			LOGGER.log(Level.INFO, "{0} Column successfully!", tableName);
 		} catch (Exception e) {
-			LOGGER.log(Level.INFO, "Exception occurred while creating table", e);
+			LOGGER.log(Level.INFO, "Exception occurred while Renaming Column", e);
 			throw e;
 		}
 
 	}
 
-	public static String renameColumn(Table table, String oldName, String newName, String dataType, String maxsize)
-			throws Exception {
-		StringBuilder query = new StringBuilder();
-		query.append("ALTER TABLE ");
-		query.append(table.getName() + "\n");
-		query.append("CHANGE " + oldName + " " + newName + " " + dataType);
-		if (maxsize != null) {
-			query.append("(" + maxsize + ")");
+	public static String formatQuery(Column column, boolean drop) throws Exception {
+		StringBuffer query = new StringBuffer();
+		if (drop) {
+			query.append(column.getName() + ", /n");
+			return query.toString();
 		}
+		if (column.getOldName() != null) {
+			query.append(column.getOldName() + ' ');
+		}
+		if (column.getName() == null) {
+			throw new Exception("Table name must not be empty");
+		}
+		query.append(column.getName() + ' ');
+		if (column.getDataType() == null) {
+			throw new Exception("Datatype must not be empty");
+		}
+		query.append(column.getDataType());
+		if (column.getMaxSize() != null) {
+			query.append('(' + column.getMaxSize() + ')' + ' ');
+		} else {
+			query.append(' ');
+		}
+		if (column.getNullable() != null) {
+			query.append(column.getNullable() + ' ');
+		}
+		if (column.getAutoIncrement() != null) {
+			query.append(column.getAutoIncrement() + ' ');
+		}
+		if (column.getPrimaryKey() != null) {
+			query.append(column.getPrimaryKey() + ' ');
+		}
+		if (query.charAt(query.length() - 1) != ',') {
+			query.append(',');
+		}
+		query.append('\n');
+
 		return query.toString();
 
 	}
 
-}
-
-class Constraints {
-	String name;
-	String dataType;
-	String maxsize;
-	String nullable;
-	String autoIncrement;
-	String primarykey;
 }

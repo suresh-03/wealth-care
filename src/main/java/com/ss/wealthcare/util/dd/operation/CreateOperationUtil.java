@@ -22,7 +22,10 @@ public class CreateOperationUtil {
 		query.append("CREATE TABLE" + ' ');
 		query.append(tableName + ' ');
 		query.append("(\n");
-		query.append(DDUtil.formatQuery(columns));
+
+		for (Column column : columns) {
+			query.append(DDUtil.formatQuery(column, false));
+		}
 
 		String revisedQuery = query.substring(0, query.length() - 2);
 		revisedQuery = revisedQuery + "\n);";

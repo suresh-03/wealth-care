@@ -13,41 +13,36 @@ import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Unmarshaller;
 
-public class SchemaBuilder
-{
+public class SchemaBuilder {
 
-    public static final String SCHEMA_DIR = DirectoryUtil.RESOURCES_DIR + DirectoryUtil.SCHEMA + DirectoryUtil.XML;
-    public static final Logger LOGGER = Logger.getLogger(SchemaBuilder.class.getName());
+	public static final String SCHEMA_DIR = DirectoryUtil.RESOURCES_DIR + DirectoryUtil.SCHEMA + DirectoryUtil.XML;
+	public static final Logger LOGGER = Logger.getLogger(SchemaBuilder.class.getName());
 
-    public static void buildSchema() throws Exception
-    {
+	public static void buildSchema() throws Exception {
 
-	try
-	{
-	    JAXBContext context = JAXBContext.newInstance(Table.class);
+		try {
+			JAXBContext context = JAXBContext.newInstance(Table.class);
 
-	    Unmarshaller unmarsheller = context.createUnmarshaller();
+			Unmarshaller unmarsheller = context.createUnmarshaller();
 
-	    File xmlSchema = new File(SCHEMA_DIR);
+			File xmlSchema = new File(SCHEMA_DIR);
 
-	    List<File> schemaFiles = FilesUtil.getFiles(xmlSchema);
+			List<File> schemaFiles = FilesUtil.getFiles(xmlSchema);
 
-	    for (File schemaFile : schemaFiles)
-	    {
-		Table table = (Table) unmarsheller.unmarshal(schemaFile);
-		DDUtil.xmlParser(table);
-	    }
+			for (File schemaFile : schemaFiles) {
+				Table table = (Table) unmarsheller.unmarshal(schemaFile);
+
+				DDUtil.xmlParser(table);
+			}
+		}
+
+		catch (JAXBException e) {
+			LOGGER.log(Level.SEVERE, "Exception occurred while building schema", e);
+		}
 	}
 
-	catch (JAXBException e)
-	{
-	    LOGGER.log(Level.SEVERE, "Exception occurred while building schema", e);
+	public static void main(String[] args) throws Exception {
+		buildSchema();
 	}
-    }
-
-    public static void main(String[] args) throws Exception
-    {
-	buildSchema();
-    }
 
 }

@@ -1,9 +1,10 @@
 package com.ss.wealthcare.util.dd;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -26,10 +27,13 @@ public class DDUtil {
 	public static void xmlParser(Table table) throws Exception {
 		DDTemplateUtil.createDDTemplate(table);
 		try (Connection connection = ConnectionUtil.getConnection()) {
-			if (tableExists(table, connection, (String) MYSQL_INFO.get("database"))) {
-				if (AlterOperationUtil.alterTable(table, connection, (String) MYSQL_INFO.get("database"))) {
-					return;
-				}
+
+//			Retries Table Attributes If Table Exist / It Is NULL
+			List<Column> existTable = tableExists(table.getName(), (String) MYSQL_INFO.get("database"), connection);
+
+//		    If table NOT NULL it Moves To Alter Operation / It Moves To Create Operation
+			if (existTable != null) {
+				AlterOperationUtil.alterTable(table, connection, existTable);
 			} else {
 				CreateOperationUtil.createTable(table, connection);
 			}
@@ -38,94 +42,94 @@ public class DDUtil {
 		}
 	}
 
-	public static boolean tableExists(Table table, Connection connection, String database) throws SQLException {
-
-		String query = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?";
-
-		PreparedStatement pstmt = connection.prepareStatement(query);
-		pstmt.setString(1, database);
-		pstmt.setString(2, table.getName());
-		try (ResultSet rs = pstmt.executeQuery()) {
-			if (rs.next()) {
-				return rs.getInt(1) > 0;
-			}
-		}
-		return false;
-	}
-
-	public static String formatQuery(List<Column> columns) throws Exception {
-		return formatQuery(columns, null);
-	}
-
-	public static String formatQuery(List<Column> columns, List<String> existingColumns) throws Exception {
-		StringBuilder query = new StringBuilder();
-		for (Column column : columns) {
-			String name = column.getName();
-			String dataType = column.getDataType();
-			String maxSize = column.getMaxSize();
-			String nullable = column.getNullable();
-			String autoIncrement = column.getAutoIncrement();
-			String primaryKey = column.getPrimaryKey();
-
-			if (name == null) {
-
-				throw new Exception("Table name must not be empty");
-			}
-			boolean columnExist = existingColumns != null && !existingColumns.isEmpty();
-			if (columnExist && existingColumns.contains(name)) {
-				continue;
-			}
-			query.append(columnExist ? "ADD COLUMN " : "");
-
-			query.append(name + ' ');
-			if (dataType == null) {
-				throw new Exception("Datatype must not be empty");
-			}
-			query.append(dataType);
-			if (maxSize != null) {
-				query.append('(' + maxSize + ')' + ' ');
-			} else {
-				query.append(' ');
-			}
-			if (nullable != null) {
-				query.append(nullable + ' ');
-			}
-			if (autoIncrement != null) {
-				query.append(autoIncrement + ' ');
-			}
-			if (primaryKey != null) {
-				query.append(primaryKey + ' ');
-			}
-			if (query.charAt(query.length() - 1) != ',') {
-				query.append(',');
-			}
-			query.append('\n');
-		}
-		return query.toString();
-	}
-
-	public static String modifyQuery(String name, String datatype, String maxSize, String nullable,
-			String autoIncrement, String primaryKey) {
+	public static String formatQuery(Column column, boolean drop) throws Exception {
 		StringBuffer query = new StringBuffer();
-		query.append("MODIFY COLUMN ");
-		if (name != null) {
-			query.append(name);
-			if (maxSize != null) {
-				query.append("(" + maxSize + ")");
-			}
+		if (drop) {
+			query.append(column.getName() + ", /n");
+			return query.toString();
+		}
+		if (column.getName() == null) {
+			throw new Exception("Table name must not be empty");
+		}
+		query.append(column.getName() + ' ');
+		if (column.getDataType() == null) {
+			throw new Exception("Datatype must not be empty");
+		}
+		query.append(column.getDataType());
+		if (column.getMaxSize() != null) {
+			query.append('(' + column.getMaxSize() + ')' + ' ');
+		} else {
 			query.append(' ');
 		}
-		if (nullable != null) {
-			query.append(nullable + " ");
+		if (column.getNullable() != null) {
+			query.append(column.getNullable() + ' ');
 		}
-		if (autoIncrement != null) {
-			query.append(autoIncrement + " ");
+		if (column.getAutoIncrement() != null) {
+			query.append(column.getAutoIncrement() + ' ');
 		}
-		if (primaryKey != null) {
-			query.append(primaryKey + " ");
+		if (column.getPrimaryKey() != null) {
+			query.append(column.getPrimaryKey() + ' ');
 		}
+		if (query.charAt(query.length() - 1) != ',') {
+			query.append(',');
+		}
+		query.append('\n');
 
 		return query.toString();
+
+	}
+
+	public static List<Column> tableExists(String tableName, String database, Connection connection)
+			throws SQLException {
+
+//		Checking Whether the table is Exist Are Not		
+		String query = "SELECT COUNT(*) AS EXIST FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = " + database
+				+ " AND TABLE_NAME = " + tableName;
+		Statement statement = connection.createStatement();
+		ResultSet rs = statement.executeQuery(query);
+
+		if (!rs.next()) {
+			return null;
+		}
+
+//		Retrieving Existing Columns and their Attributes from Database
+		List<Column> existColumns = new ArrayList<Column>();
+
+		query = "SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, EXTRA FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = "
+				+ database + " AND TABLE_NAME = " + tableName;
+		rs = statement.executeQuery(query);
+
+		while (rs.next()) {
+			Column column = new Column();
+			if (rs.getString("COLUMN_NAME") != null) {
+				column.setName(rs.getString("COLUMN_NAME"));
+			}
+			if (rs.getString("COLUMN_TYPE") != null) {
+				StringBuffer datatype = new StringBuffer(rs.getString("COLUMN_TYPE"));
+				if (datatype.charAt(datatype.length() - 1) == ')') {
+					int index = datatype.indexOf("(");
+					column.setDataType(datatype.substring(0, index));
+					column.setMaxSize(datatype.substring(index + 1, datatype.length() - 1));
+				} else {
+					column.setDataType(datatype.toString());
+				}
+			}
+			if (rs.getString("IS_NULLABLE") != null) {
+				if (rs.getString("IS_NULLABLE").equals("NO")) {
+					column.setNullable("NOT NULL");
+				}
+			}
+			if (rs.getString("COLUMN_KEY") != null) {
+				if (rs.getString("COLUMN_KEY").equals("PRI")) {
+					column.setNullable("PRIMARY KEY");
+				}
+			}
+			if (rs.getString("EXTRA") != null) {
+				column.setAutoIncrement("AUTO_INCREMENT");
+			}
+		}
+
+		return existColumns;
 	}
 
 }
