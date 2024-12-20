@@ -2,16 +2,16 @@
 <table name="User" display-name="user">
 
 	<column name="USER_ID">
-		<data-type>BIGINT</data-type>
+		<data-type>INT</data-type>
 		<auto-increment>AUTO_INCREMENT</auto-increment>
 		<primary-key>PRIMARY KEY</primary-key>
 	</column>
-	<column name="USER_NAME">
+	<column name="PASSWORD">
 		<data-type>VARCHAR</data-type>
-		<max-size>200</max-size>
+		<max-size>300</max-size>
 		<nullable>NOT NULL</nullable>
 	</column>
-	<column name="PASSWORD">
+	<column name="EMAIL">
 		<data-type>VARCHAR</data-type>
 		<max-size>300</max-size>
 		<nullable>NOT NULL</nullable>
@@ -21,5 +21,7 @@
 		<max-size>300</max-size>
 		<nullable>NOT NULL</nullable>
 	</column>
+	
+	
 
 </table>

@@ -9,87 +9,116 @@ import java.util.logging.Logger;
 
 import com.ss.wealthcare.schema.builder.Column;
 import com.ss.wealthcare.schema.builder.Table;
+import com.ss.wealthcare.util.dd.DDUtil;
 
 public class AlterOperationUtil {
 
 	private static final Logger LOGGER = Logger.getLogger(AlterOperationUtil.class.getName());
 
-	public static void alterTable(Table table, Connection connection, List<Column> existColums) throws Exception {
+	public static void alterTable(Table table, Connection connection, List<Column> existColumns, String database)
+			throws Exception {
 
-		List<String> removedColumns = new ArrayList<String>();
-		List<Column> addedColumns = table.getColumns();
+		List<Column> newColumns = new ArrayList<Column>(table.getColumns());
+		List<String> newColumnName = new ArrayList<String>();
+		List<Column> removedColumns = new ArrayList<Column>();
+		List<Column> addedColumns = new ArrayList<Column>(table.getColumns());
 		List<String> existColumnName = new ArrayList<String>();
-		for (Column column : existColums)
+
+		for (Column column : existColumns)
 			existColumnName.add(column.getName());
 
-		boolean remove = addedColumns.size() < existColums.size() ? true : false;
+		for (Column column : newColumns)
+			newColumnName.add(column.getName());
 
-		int last = addedColumns.size() < existColums.size() ? addedColumns.size() : existColums.size();
+		int size = addedColumns.size();
 
-		for (int i = 0; i < last; i++) {
-			if (addedColumns.get(i).getName().equals(existColums.get(i).getName())) {
-				if (!constraintChecker(addedColumns.get(i), existColums.get(i))) {
-					modifyConstraint(table.getName(), addedColumns.get(i), connection);
+		for (int i = 0; i < size; i++) {
+			if (i < existColumns.size() && newColumns.get(i).getName().equals(existColumns.get(i).getName())) {
+				if (constraintChecker(newColumns.get(i), existColumns.get(i))) {
+					modifyConstraint(table.getName(), newColumns.get(i), connection);
 				}
-				addedColumns.remove(i);
-			} else if (addedColumns.get(i).getOldName().equals(existColums.get(i).getName())) {
-				rename(table.getName(), addedColumns.get(i), connection);
-				if (!constraintChecker(addedColumns.get(i), existColums.get(i))) {
-					modifyConstraint(table.getName(), addedColumns.get(i), connection);
+				addedColumns.remove(addedColumns.indexOf(newColumns.get(i)));
+			} else if (i < existColumns.size() && newColumns.get(i).getOldName() != null
+					&& newColumns.get(i).getOldName().equals(existColumns.get(i).getName())) {
+				rename(table.getName(), newColumns.get(i), connection);
+				if (constraintChecker(newColumns.get(i), existColumns.get(i))) {
+					modifyConstraint(table.getName(), newColumns.get(i), connection);
 				}
-				addedColumns.remove(i);
-			} else if (existColumnName.contains(addedColumns.get(i).getName())) {
-//				changeOrder();
-				if (!constraintChecker(addedColumns.get(i), existColums.get(i))) {
-					modifyConstraint(table.getName(), addedColumns.get(i), connection);
+				addedColumns.remove(addedColumns.indexOf(newColumns.get(i)));
+			} else if (i < existColumns.size() && existColumnName.contains(newColumns.get(i).getName())) {
+				changeOrder(table.getName(), connection,
+						existColumns.get(existColumnName.indexOf(newColumns.get(i).getName())),
+						i == 0 ? "FIRST" : existColumnName.get(i - 1));
+				existColumns = DDUtil.tableExists(table.getName(), database, connection);
+				if (constraintChecker(newColumns.get(i), existColumns.get(i))) {
+					modifyConstraint(table.getName(), newColumns.get(i), connection);
 				}
-				addedColumns.remove(i);
-			} else if (existColumnName.contains(addedColumns.get(i).getOldName())) {
-//				changeOrder();
-				rename(table.getName(), addedColumns.get(i), connection);
-				if (!constraintChecker(addedColumns.get(i), existColums.get(i))) {
-					modifyConstraint(table.getName(), addedColumns.get(i), connection);
+				addedColumns.remove(addedColumns.indexOf(newColumns.get(i)));
+
+			} else if (i < existColumns.size() && newColumns.get(i).getOldName() != null
+					&& existColumnName.contains(newColumns.get(i).getOldName())) {
+				changeOrder(table.getName(), connection,
+						existColumns.get(existColumnName.indexOf(newColumns.get(i).getOldName())),
+						i == 0 ? "FIRST" : existColumnName.get(i - 1));
+				rename(table.getName(), newColumns.get(i), connection);
+				existColumns = DDUtil.tableExists(table.getName(), database, connection);
+				if (constraintChecker(newColumns.get(i), existColumns.get(i))) {
+					modifyConstraint(table.getName(), newColumns.get(i), connection);
 				}
-				addedColumns.remove(i);
+				addedColumns.remove(addedColumns.indexOf(newColumns.get(i)));
 			}
 		}
 
 		if (!addedColumns.isEmpty()) {
-//			addColumns(table.getName(),addedColumns);
+			addColumn(table.getName(), addedColumns, connection);
 		}
 
-		if (remove) {
-			for (int i = last; i < existColums.size(); i++) {
-				removedColumns.add(existColums.get(i).getName());
+		for (String column : existColumnName) {
+			if (!newColumnName.contains(column)) {
+				removedColumns.add(existColumns.get(existColumnName.indexOf(column)));
 			}
-//			removeColumns(table.getName(),removedColumns);
+		}
+		if (!removedColumns.isEmpty()) {
+			removeColumn(table.getName(), removedColumns, connection);
 		}
 
 	}
 
 	public static boolean constraintChecker(Column added, Column exist) {
-		if (!added.getDataType().equals(exist.getDataType()))
-			return false;
-		if (!added.getMaxSize().equals(exist.getMaxSize()))
-			return false;
-		if (!added.getNullable().equals(exist.getNullable()))
-			return false;
-		if (!added.getAutoIncrement().equals(exist.getAutoIncrement()))
-			return false;
-		if (!added.getPrimaryKey().equals(exist.getPrimaryKey()))
-			return false;
+		if (added.getDataType() != null && exist.getDataType() != null) {
+			if (!added.getDataType().equalsIgnoreCase(exist.getDataType()))
+				return true;
+		}
+		if (added.getMaxSize() != null && exist.getMaxSize() != null) {
+			if (!added.getMaxSize().equalsIgnoreCase(exist.getMaxSize()))
+				return true;
+		}
+		if (added.getNullable() != null && exist.getNullable() != null) {
+			if (!added.getNullable().equalsIgnoreCase(exist.getNullable()))
+				return true;
+		}
+		if (added.getAutoIncrement() != null && exist.getAutoIncrement() != null) {
+			if (!added.getAutoIncrement().equalsIgnoreCase(exist.getAutoIncrement()))
+				return true;
+		}
+		if (added.getPrimaryKey() != null && exist.getPrimaryKey() != null) {
+			if (!added.getPrimaryKey().equalsIgnoreCase(exist.getPrimaryKey()))
+				return true;
+		}
 
-		return true;
+		return false;
 	}
 
 	public static void modifyConstraint(String tableName, Column column, Connection connection) throws Exception {
 		StringBuffer query = new StringBuffer();
 		query.append("ALTER TABLE " + tableName + " \nMODIFY COLUMN ");
-		query.append(formatQuery(column, false));
+		column.setPrimaryKey(null);
+		query.append(DDUtil.formatQuery(column, false));
 
 		String revisedQuery = query.substring(0, query.length() - 2);
 		try {
 			Statement statement = connection.createStatement();
+			System.out.println(revisedQuery);
 			statement.execute(revisedQuery);
 			LOGGER.log(Level.INFO, "{0} Column Modified successfully!", tableName);
 		} catch (Exception e) {
@@ -102,9 +131,12 @@ public class AlterOperationUtil {
 	public static void rename(String tableName, Column column, Connection connection) throws Exception {
 		StringBuffer query = new StringBuffer();
 		query.append("ALTER TABLE " + tableName + " \nCHANGE ");
-		query.append(formatQuery(column, false));
+		query.append(column.getOldName() + ' ' + column.getName() + " " + column.getDataType());
+		if (column.getMaxSize() != null) {
+			query.append('(' + column.getMaxSize() + ')');
+		}
 
-		String revisedQuery = query.substring(0, query.length() - 2);
+		String revisedQuery = query.toString();
 		try {
 			Statement statement = connection.createStatement();
 			statement.execute(revisedQuery);
@@ -113,46 +145,77 @@ public class AlterOperationUtil {
 			LOGGER.log(Level.INFO, "Exception occurred while Renaming Column", e);
 			throw e;
 		}
+	}
+
+	public static void changeOrder(String tableName, Connection connection, Column column, String Previous)
+			throws Exception {
+		StringBuffer query = new StringBuffer();
+		query.append("ALTER TABLE " + tableName + " \nCHANGE COLUMN ");
+		query.append(column.getName() + ' ' + column.getName() + ' ' + column.getDataType().toUpperCase());
+		if (column.getMaxSize() != null) {
+			query.append('(' + column.getMaxSize() + ')');
+		}
+		query.append(" AFTER " + Previous);
+
+		String revisedQuery = query.toString();
+		System.out.println(revisedQuery);
+		try {
+			Statement statement = connection.createStatement();
+			statement.execute(revisedQuery);
+			LOGGER.log(Level.INFO, "{0} Column order Changed successfully!", tableName);
+		} catch (Exception e) {
+			LOGGER.log(Level.INFO, "Exception occurred while Changing Column order", e);
+			throw e;
+		}
+	}
+
+	public static void addColumn(String tableName, List<Column> columns, Connection connection) throws Exception {
+		// Query Construction
+		StringBuilder query = new StringBuilder();
+		query.append("ALTER TABLE " + tableName + '\n');
+		for (Column column : columns) {
+			query.append("ADD COLUMN ");
+			query.append(DDUtil.formatQuery(column, false));
+		}
+		String revisedQuery = query.substring(0, query.length() - 3);
+
+		LOGGER.log(Level.INFO, "SQL ADD QUERY: {0}", revisedQuery);
+
+		// Query Execution
+		try {
+			Statement statement = connection.createStatement();
+			statement.execute(revisedQuery);
+			LOGGER.log(Level.INFO, "{0} Column Added successfully!", tableName);
+		} catch (Exception e) {
+			LOGGER.log(Level.INFO, "Exception occurred while Adding Column", e);
+			throw e;
+		}
 
 	}
 
-	public static String formatQuery(Column column, boolean drop) throws Exception {
-		StringBuffer query = new StringBuffer();
-		if (drop) {
-			query.append(column.getName() + ", /n");
-			return query.toString();
-		}
-		if (column.getOldName() != null) {
-			query.append(column.getOldName() + ' ');
-		}
-		if (column.getName() == null) {
-			throw new Exception("Table name must not be empty");
-		}
-		query.append(column.getName() + ' ');
-		if (column.getDataType() == null) {
-			throw new Exception("Datatype must not be empty");
-		}
-		query.append(column.getDataType());
-		if (column.getMaxSize() != null) {
-			query.append('(' + column.getMaxSize() + ')' + ' ');
-		} else {
-			query.append(' ');
-		}
-		if (column.getNullable() != null) {
-			query.append(column.getNullable() + ' ');
-		}
-		if (column.getAutoIncrement() != null) {
-			query.append(column.getAutoIncrement() + ' ');
-		}
-		if (column.getPrimaryKey() != null) {
-			query.append(column.getPrimaryKey() + ' ');
-		}
-		if (query.charAt(query.length() - 1) != ',') {
-			query.append(',');
-		}
-		query.append('\n');
+	public static void removeColumn(String tableName, List<Column> columns, Connection connection) throws Exception {
+		// Query Construction
+		StringBuilder query = new StringBuilder();
+		query.append("ALTER TABLE " + tableName + '\n');
 
-		return query.toString();
+		for (Column column : columns) {
+			query.append("DROP COLUMN ");
+			query.append(DDUtil.formatQuery(column, true));
+		}
+
+		String revisedQuery = query.substring(0, query.length() - 2);
+
+		LOGGER.log(Level.INFO, "SQL ADD QUERY: {0}", revisedQuery);
+
+		// Query Execution
+		try {
+			Statement statement = connection.createStatement();
+			statement.execute(revisedQuery);
+			LOGGER.log(Level.INFO, "{0} Column Removed successfully!", tableName);
+		} catch (Exception e) {
+			LOGGER.log(Level.INFO, "Exception occurred while Removing Column", e);
+			throw e;
+		}
 
 	}
 

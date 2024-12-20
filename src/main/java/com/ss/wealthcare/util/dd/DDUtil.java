@@ -33,7 +33,7 @@ public class DDUtil {
 
 //		    If table NOT NULL it Moves To Alter Operation / It Moves To Create Operation
 			if (existTable != null) {
-				AlterOperationUtil.alterTable(table, connection, existTable);
+				AlterOperationUtil.alterTable(table, connection, existTable, (String) MYSQL_INFO.get("database"));
 			} else {
 				CreateOperationUtil.createTable(table, connection);
 			}
@@ -45,7 +45,7 @@ public class DDUtil {
 	public static String formatQuery(Column column, boolean drop) throws Exception {
 		StringBuffer query = new StringBuffer();
 		if (drop) {
-			query.append(column.getName() + ", /n");
+			query.append(column.getName() + ",\n");
 			return query.toString();
 		}
 		if (column.getName() == null) {
@@ -83,20 +83,22 @@ public class DDUtil {
 			throws SQLException {
 
 //		Checking Whether the table is Exist Are Not		
-		String query = "SELECT COUNT(*) AS EXIST FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = " + database
-				+ " AND TABLE_NAME = " + tableName;
+		String query = "SELECT COUNT(*) AS EXIST FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = '" + database
+				+ "' AND TABLE_NAME = '" + tableName + "'";
 		Statement statement = connection.createStatement();
 		ResultSet rs = statement.executeQuery(query);
 
-		if (!rs.next()) {
-			return null;
+		if (rs.next()) {
+			if (!(rs.getInt("EXIST") > 0)) {
+				return null;
+			}
 		}
 
 //		Retrieving Existing Columns and their Attributes from Database
 		List<Column> existColumns = new ArrayList<Column>();
 
-		query = "SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, EXTRA FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = "
-				+ database + " AND TABLE_NAME = " + tableName;
+		query = "SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, EXTRA FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '"
+				+ database + "' AND TABLE_NAME = '" + tableName + "'";
 		rs = statement.executeQuery(query);
 
 		while (rs.next()) {
@@ -127,6 +129,8 @@ public class DDUtil {
 			if (rs.getString("EXTRA") != null) {
 				column.setAutoIncrement("AUTO_INCREMENT");
 			}
+
+			existColumns.add(column);
 		}
 
 		return existColumns;
