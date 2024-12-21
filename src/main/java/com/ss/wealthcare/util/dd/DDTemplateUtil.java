@@ -30,6 +30,12 @@ public class DDTemplateUtil
 
     private static final Logger LOGGER = Logger.getLogger(DDTemplateUtil.class.getName());
 
+    private DDTemplateUtil()
+    {
+	DDUtil.throwUOE();
+
+    }
+
     public static void createDDTemplate(Table table)
     {
 	String fileName = table.getName().toUpperCase() + ".java";

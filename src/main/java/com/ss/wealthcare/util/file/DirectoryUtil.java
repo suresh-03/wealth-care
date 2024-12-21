@@ -1,7 +1,16 @@
 package com.ss.wealthcare.util.file;
 
+import com.ss.wealthcare.util.dd.DDUtil;
+
 public class DirectoryUtil
 {
+
+    private DirectoryUtil()
+    {
+	DDUtil.throwUOE();
+
+    }
+
     // Directories
     public static final String SRC = "src/";
     public static final String MAIN = "main/";

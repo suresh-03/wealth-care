@@ -1,0 +1,12 @@
+WEB APP ARCHITECTURE
+
+Application layer - jsp
+Business layer - logic code
+Service layer - servlet & jdbc
+domain layer - mysql
+
+
+questions
+why stringbuffer is used in formatQuery?
+is there only autoincrement in extra field?
+its not necessary to handle IS_NULLABLE is yes in existing column case?

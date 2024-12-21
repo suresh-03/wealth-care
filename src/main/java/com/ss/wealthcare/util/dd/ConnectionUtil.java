@@ -21,6 +21,12 @@ public class ConnectionUtil
 
     private static final Logger LOGGER = Logger.getLogger(ConnectionUtil.class.getName());
 
+    private ConnectionUtil()
+    {
+	DDUtil.throwUOE();
+
+    }
+
     static
     {
 	String host = (String) MYSQL_INFO.get("host");
