@@ -1,20 +1,23 @@
 package com.ss.wealthcare.util.dd.operation;
 
-import static com.ss.wealthcare.util.dd.DDUtil.SQLWrapper.closeAll;
+import static com.ss.wealthcare.util.dd.DDUtil.isNull;
 
-import java.util.List;
+import java.sql.Connection;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.ss.wealthcare.schema.builder.Column;
+import com.ss.wealthcare.schema.builder.ForeignKeys;
+import com.ss.wealthcare.schema.builder.ForeignKeys.ForeignKey;
+import com.ss.wealthcare.schema.builder.PrimaryKey;
 import com.ss.wealthcare.schema.builder.Table;
+import com.ss.wealthcare.util.dd.ConnectionUtil;
 import com.ss.wealthcare.util.dd.DDUtil;
-import com.ss.wealthcare.util.dd.DDUtil.SQLWrapper;
 
 public class CreateOperationUtil
 {
     private static final Logger LOGGER = Logger.getLogger(CreateOperationUtil.class.getName());
-    private static SQLWrapper wrapper;
 
     private CreateOperationUtil()
     {
@@ -24,39 +27,126 @@ public class CreateOperationUtil
 
     public static void createTable(Table table) throws Exception
     {
-	// Query Construction
-	String tableName = table.getName();
-	List<Column> columns = table.getColumns();
-
-	StringBuilder query = new StringBuilder();
-	query.append("CREATE TABLE" + ' ');
-	query.append(tableName + ' ');
-	query.append("(\n");
-
-	for (Column column : columns)
+	// TODO Auto-generated method stub
+	String query = constructCreateQuery(table);
+	try (Connection connection = ConnectionUtil.getConnection())
 	{
-	    query.append(DDUtil.formatQuery(column, false));
-	}
-
-	String revisedQuery = query.substring(0, query.length() - 2);
-	revisedQuery = revisedQuery + "\n);";
-	LOGGER.log(Level.INFO, "SQL CREATE QUERY: {0}", revisedQuery);
-
-	// Query Execution
-	try
-	{
-	    wrapper = DDUtil.executeQuery(revisedQuery);
-	    LOGGER.log(Level.INFO, "{0} table created successfully!", table.getDisplayName());
-	}
-	catch (Exception e)
-	{
-	    LOGGER.log(Level.INFO, "Exception occurred while creating table", e);
-	    throw e;
-	}
-	finally
-	{
-	    closeAll(wrapper);
+	    connection.createStatement().execute(query);
+	    LOGGER.log(Level.INFO, "{0} is executed successfully", query);
 	}
 
     }
+
+    private static String constructCreateQuery(Table table)
+    {
+	StringBuilder sb = new StringBuilder();
+
+	sb.append("CREATE TABLE").append(' ').append(table.getName()).append(' ').append('(').append('\n');
+
+	for (Column column : table.getColumns())
+	{
+	    String name = column.getName();
+	    String dataType = column.getDataType();
+	    String maxSize = column.getMaxSize();
+	    String autoIncrement = column.getAutoIncrement();
+	    String defaultValue = column.getDefaultValue();
+	    String nullable = column.getNullable();
+
+	    if (isNull(name) || isNull(dataType))
+	    {
+		LOGGER.log(Level.INFO, "column name and datatype is mandatory!");
+		return "";
+	    }
+	    sb.append(name).append(' ').append(dataType);
+	    if (!isNull(maxSize))
+	    {
+		sb.append('(').append(maxSize).append(')');
+	    }
+	    sb.append(' ');
+	    if (!isNull(autoIncrement))
+	    {
+		sb.append(autoIncrement).append(' ');
+	    }
+	    if (!isNull(nullable))
+	    {
+		sb.append(nullable).append(' ');
+	    }
+	    if (!isNull(defaultValue))
+	    {
+		sb.append(defaultValue).append(' ');
+	    }
+	    sb.append(',');
+	    sb.append('\n');
+	}
+	PrimaryKey primaryKey = table.getPrimaryKey();
+	ForeignKeys foreignKey = table.getForeignKey();
+	if (isNull(primaryKey) && isNull(foreignKey))
+	{
+	    sb.delete(sb.length() - 2, sb.length());
+	}
+
+	if (!isNull(primaryKey))
+	{
+	    sb.append("CONSTRAINT")
+		    .append(' ')
+		    .append(primaryKey.getPkName())
+		    .append(' ')
+		    .append("PRIMARY KEY")
+		    .append(' ')
+		    .append('(');
+	    for (String keyColumn : primaryKey.getKeyColumns())
+	    {
+		sb.append(keyColumn).append(',');
+	    }
+	    sb.deleteCharAt(sb.length() - 1);
+	    sb.append(')');
+	}
+	if (!isNull(foreignKey))
+	{
+	    sb.append(',').append('\n');
+	    for (Map.Entry<String, ForeignKey> map : foreignKey.getFkNameVsForeignKey().entrySet())
+	    {
+		String fkName = map.getKey();
+		ForeignKey fk = map.getValue();
+
+		sb.append("CONSTRAINT")
+			.append(' ')
+			.append(fkName)
+			.append(' ')
+			.append("FOREIGN KEY")
+			.append(' ')
+			.append('(');
+
+		for (String fkColumn : fk.getKeyColumns())
+		{
+		    sb.append(fkColumn).append(',');
+		}
+		sb.deleteCharAt(sb.length() - 1);
+		sb.append(')')
+			.append(' ')
+			.append("REFERENCES")
+			.append(' ')
+			.append('`')
+			.append(fk.getFKReference().getReferenceTable())
+			.append('`')
+			.append('(');
+
+		for (String referenceColumn : fk.getFKReference().getKeyColumns())
+		{
+		    sb.append(referenceColumn).append(',');
+		}
+		sb.deleteCharAt(sb.length() - 1);
+		sb.append(')').append(',').append('\n');
+
+	    }
+	}
+	if (!isNull(foreignKey))
+	{
+	    sb.delete(sb.length() - 2, sb.length());
+	}
+	sb.append('\n').append(')').append(';');
+
+	return sb.toString();
+    }
+
 }

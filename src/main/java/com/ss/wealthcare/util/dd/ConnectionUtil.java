@@ -13,7 +13,7 @@ import com.zaxxer.hikari.HikariDataSource;
 public class ConnectionUtil
 {
     private static final Map<String, Object> MYSQL_INFO = YamlParserUtil
-	    .loadYamlFile(DirectoryUtil.CONF_DIR + DirectoryUtil.MYSQL + "conf.yaml");
+	    .loadYamlFile(DirectoryUtil.CONF_DIR + DirectoryUtil.YAML + "conf.yaml");
 
     private static HikariDataSource dataSource;
 
