@@ -2,7 +2,6 @@ package com.ss.wealthcare.util.dd.operation;
 
 import static com.ss.wealthcare.util.dd.DDUtil.isNull;
 
-import java.sql.Connection;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -12,7 +11,8 @@ import com.ss.wealthcare.schema.builder.ForeignKeys;
 import com.ss.wealthcare.schema.builder.ForeignKeys.ForeignKey;
 import com.ss.wealthcare.schema.builder.PrimaryKey;
 import com.ss.wealthcare.schema.builder.Table;
-import com.ss.wealthcare.util.dd.ConnectionUtil;
+import com.ss.wealthcare.schema.builder.UniqueKeys;
+import com.ss.wealthcare.schema.builder.UniqueKeys.UniqueKey;
 import com.ss.wealthcare.util.dd.DDUtil;
 
 public class CreateOperationUtil
@@ -29,12 +29,7 @@ public class CreateOperationUtil
     {
 	// TODO Auto-generated method stub
 	String query = constructCreateQuery(table);
-	try (Connection connection = ConnectionUtil.getConnection())
-	{
-	    connection.createStatement().execute(query);
-	    LOGGER.log(Level.INFO, "{0} is executed successfully", query);
-	}
-
+	DDUtil.executeDDLQuery(query);
     }
 
     private static String constructCreateQuery(Table table)
@@ -80,20 +75,16 @@ public class CreateOperationUtil
 	}
 	PrimaryKey primaryKey = table.getPrimaryKey();
 	ForeignKeys foreignKey = table.getForeignKey();
-	if (isNull(primaryKey) && isNull(foreignKey))
+	UniqueKeys uniqueKey = table.getUniqueKeys();
+	if (isNull(primaryKey) && isNull(foreignKey) && isNull(uniqueKey))
 	{
 	    sb.delete(sb.length() - 2, sb.length());
 	}
 
 	if (!isNull(primaryKey))
 	{
-	    sb.append("CONSTRAINT")
-		    .append(' ')
-		    .append(primaryKey.getPkName())
-		    .append(' ')
-		    .append("PRIMARY KEY")
-		    .append(' ')
-		    .append('(');
+
+	    sb.append("PRIMARY KEY").append(' ').append('(');
 	    for (String keyColumn : primaryKey.getKeyColumns())
 	    {
 		sb.append(keyColumn).append(',');
@@ -140,7 +131,27 @@ public class CreateOperationUtil
 
 	    }
 	}
-	if (!isNull(foreignKey))
+	if (!isNull(uniqueKey))
+	{
+	    sb.append(',').append('\n');
+	    for (Map.Entry<String, UniqueKey> map : uniqueKey.getUkNameVsUniqueKey().entrySet())
+	    {
+		String ukName = map.getKey();
+		UniqueKey uk = map.getValue();
+		// CONSTRAINT unique_email UNIQUE (email),
+		sb.append("CONSTRAINT").append(' ').append(ukName).append(' ').append("UNIQUE").append(' ').append('(');
+
+		for (String keyColumn : uk.getKeyColumns())
+		{
+		    sb.append(keyColumn).append(',');
+		}
+
+		sb.deleteCharAt(sb.length() - 1);
+		sb.append(')').append(',').append('\n');
+
+	    }
+	}
+	if (!isNull(foreignKey) || !isNull(uniqueKey))
 	{
 	    sb.delete(sb.length() - 2, sb.length());
 	}

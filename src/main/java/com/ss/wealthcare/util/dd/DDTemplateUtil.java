@@ -87,6 +87,20 @@ public class DDTemplateUtil
 
     }
 
+    public static void deleteDDTemplate(Table table)
+    {
+	String filename = table.getName().toUpperCase() + ".java";
+	File file = new File(TEMPLATE_DIR + filename);
+	if (file.delete())
+	{
+	    LOGGER.log(Level.INFO, "{0} is deleted!", filename);
+	}
+	else
+	{
+	    LOGGER.log(Level.INFO, "failed to delete file {0}", filename);
+	}
+    }
+
     private static void createDDTemplate(BufferedWriter writer, Table table) throws Exception
     {
 	String className = table.getName().toUpperCase();

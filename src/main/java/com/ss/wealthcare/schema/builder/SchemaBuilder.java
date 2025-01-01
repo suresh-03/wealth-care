@@ -24,7 +24,7 @@ public class SchemaBuilder
 
 	try
 	{
-	    JAXBContext context = JAXBContext.newInstance(Table.class);
+	    JAXBContext context = JAXBContext.newInstance(Tables.class);
 
 	    Unmarshaller unmarsheller = context.createUnmarshaller();
 
@@ -34,13 +34,20 @@ public class SchemaBuilder
 
 	    for (File schemaFile : schemaFiles)
 	    {
-		Table table = (Table) unmarsheller.unmarshal(schemaFile);
-		if (!DDUtil.isNull(table.getForeignKey()))
+		Tables tables = (Tables) unmarsheller.unmarshal(schemaFile);
+		for (Table table : tables.getTables())
 		{
-		    table.getForeignKey().loadMap();
-		}
+		    if (!DDUtil.isNull(table.getForeignKey()))
+		    {
+			table.getForeignKey().loadMap();
+		    }
+		    if (!DDUtil.isNull(table.getUniqueKeys()))
+		    {
+			table.getUniqueKeys().loadMap();
+		    }
 
-		DDUtil.xmlParser(table);
+		    DDUtil.xmlParser(table);
+		}
 	    }
 	}
 

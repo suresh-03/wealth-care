@@ -2,7 +2,6 @@ package com.ss.wealthcare.util.dd.operation;
 
 import static com.ss.wealthcare.util.dd.DDUtil.isNull;
 
-import java.sql.Connection;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -11,7 +10,8 @@ import java.util.logging.Logger;
 import com.ss.wealthcare.schema.builder.Column;
 import com.ss.wealthcare.schema.builder.ForeignKeys.ForeignKey;
 import com.ss.wealthcare.schema.builder.Table;
-import com.ss.wealthcare.util.dd.ConnectionUtil;
+import com.ss.wealthcare.schema.builder.UniqueKeys.UniqueKey;
+import com.ss.wealthcare.util.dd.DDTemplateUtil;
 import com.ss.wealthcare.util.dd.DDUtil;
 
 public class AlterOperationUtil
@@ -28,7 +28,10 @@ public class AlterOperationUtil
     {
 	if (table.isOldNameEquals(dbTable))
 	{
+	    DDTemplateUtil.deleteDDTemplate(dbTable);
 	    renameTable(dbTable, table);
+	    DDTemplateUtil.createDDTemplate(table);
+
 	}
 	else
 	{
@@ -54,6 +57,128 @@ public class AlterOperationUtil
 	checkAndDropColumn(table, dbTableColumns, tableColumns);
 	checkAndModifyPrimaryKey(dbTable, table);
 	checkAndModifyForeignKey(dbTable, table);
+	checkAndModifyUniqueKey(dbTable, table);
+	orderiseColumns(table);
+    }
+
+    private static void orderiseColumns(Table table) throws Exception
+    {
+	List<Column> columns = table.getColumns();
+	Column prevColumn = columns.get(0);
+
+	for (int i = 1; i < columns.size(); i++)
+	{
+	    String query = constructOrderColumnsQuery(table.getName(), prevColumn, columns.get(i));
+	    DDUtil.executeDDLQuery(query);
+	    prevColumn = columns.get(i);
+	}
+    }
+
+    private static String constructOrderColumnsQuery(String tableName, Column prevColumn, Column column)
+    {
+	// ALTER TABLE employees
+//	MODIFY COLUMN phone VARCHAR(15) AFTER email;
+	StringBuilder sb = new StringBuilder();
+	sb.append("ALTER TABLE")
+		.append(' ')
+		.append(tableName)
+		.append(' ')
+		.append("MODIFY COLUMN")
+		.append(' ')
+		.append(column.getName())
+		.append(' ')
+		.append(column.getDataType())
+		.append(column.getMaxSize() == null ? "" : "(" + column.getMaxSize() + ")")
+		.append(' ')
+		.append("AFTER")
+		.append(' ')
+		.append(prevColumn.getName())
+		.append(';');
+
+	return sb.toString();
+
+    }
+
+    private static void checkAndModifyUniqueKey(Table dbTable, Table table) throws Exception
+    {
+	if (isNull(table.getUniqueKeys()) && !isNull(dbTable.getUniqueKeys()))
+	{
+	    dropUniqueKey(dbTable, table);
+	}
+	if (!isNull(table.getUniqueKeys()) && isNull(dbTable.getUniqueKeys()))
+	{
+	    addUniqueKey(dbTable, table);
+	}
+	if (!isNull(table.getUniqueKeys()) && !isNull(dbTable.getUniqueKeys()))
+	{
+	    dropUniqueKey(dbTable, table);
+	    addUniqueKey(table, table);
+	}
+
+    }
+
+    private static void addUniqueKey(Table dbTable, Table table) throws Exception
+    {
+	// TODO Auto-generated method stub
+	String query = constructAddUniqueKeyQuery(table);
+	DDUtil.executeDDLQuery(query);
+	dbTable.setUniqueKeys(table.getUniqueKeys());
+    }
+
+    private static String constructAddUniqueKeyQuery(Table table)
+    {
+	// ALTER TABLE employees
+//	ADD CONSTRAINT unique_name UNIQUE (name);
+	StringBuilder sb = new StringBuilder();
+
+	sb.append("ALTER TABLE").append(' ').append(table.getName()).append(' ');
+
+	for (Map.Entry<String, UniqueKey> map : table.getUniqueKeys().getUkNameVsUniqueKey().entrySet())
+	{
+	    String ukName = map.getKey();
+	    UniqueKey uk = map.getValue();
+
+	    sb.append("ADD CONSTRAINT").append(' ').append(ukName).append(' ').append("UNIQUE").append(' ').append('(');
+
+	    for (String keyColumn : uk.getKeyColumns())
+	    {
+		sb.append(keyColumn).append(',');
+	    }
+	    sb.deleteCharAt(sb.length() - 1);
+	    sb.append(')').append(',');
+	}
+	sb.deleteCharAt(sb.length() - 1);
+	sb.append(';');
+
+	return sb.toString();
+    }
+
+    private static void dropUniqueKey(Table dbTable, Table table) throws Exception
+    {
+	// TODO Auto-generated method stub
+	String query = constructDropUniqueKeyQuery(dbTable);
+	DDUtil.executeDDLQuery(query);
+	dbTable.setUniqueKeys(table.getUniqueKeys());
+
+    }
+
+    private static String constructDropUniqueKeyQuery(Table table)
+    {
+	// TODO Auto-generated method stub
+	// ALTER TABLE employees
+//	DROP INDEX unique_email,
+//	DROP INDEX unique_phone;
+
+	StringBuilder sb = new StringBuilder();
+	sb.append("ALTER TABLE").append(' ').append(table.getName()).append(' ');
+	for (UniqueKey uk : table.getUniqueKeys().getUniqueKeys())
+	{
+	    sb.append("DROP INDEX").append(' ').append(uk.getUkName()).append(',');
+	}
+	sb.deleteCharAt(sb.length() - 1);
+	sb.append(';');
+	return sb.toString();
+
     }
 
     private static void checkAndModifyForeignKey(Table dbTable, Table table) throws Exception
@@ -76,18 +201,13 @@ public class AlterOperationUtil
     private static void addForeignKey(Table dbTable, Table table) throws Exception
     {
 	// TODO Auto-generated method stub
-	String query = constructAddForeignKeyQuery(dbTable, table);
-	try (Connection connection = ConnectionUtil.getConnection())
-	{
-	    connection.createStatement().execute(query);
-	    dbTable.setForeignKey(table.getForeignKey());
-	    LOGGER.log(Level.INFO, "{0} is executed successfully", query);
-
-	}
+	String query = constructAddForeignKeyQuery(table);
+	DDUtil.executeDDLQuery(query);
+	dbTable.setForeignKey(table.getForeignKey());
 
     }
 
-    private static String constructAddForeignKeyQuery(Table dbTable, Table table)
+    private static String constructAddForeignKeyQuery(Table table)
     {
 	// ALTER TABLE child_table
 //	ADD CONSTRAINT constraint_name
@@ -95,7 +215,6 @@ public class AlterOperationUtil
 //	REFERENCES parent_table (parent_column)
 
 	StringBuilder sb = new StringBuilder();
-	table.getForeignKey().loadMap();
 	sb.append("ALTER TABLE").append(' ').append(table.getName()).append(' ');
 	for (Map.Entry<String, ForeignKey> map : table.getForeignKey().getFkNameVsForeignKey().entrySet())
 	{
@@ -139,18 +258,13 @@ public class AlterOperationUtil
     private static void dropForeignKey(Table dbTable, Table table) throws Exception
     {
 	// TODO Auto-generated method stub
-	String query = constructDropForeignKeyQuery(dbTable, table);
-	try (Connection connection = ConnectionUtil.getConnection())
-	{
-	    connection.createStatement().execute(query);
-	    dbTable.setForeignKey(table.getForeignKey());
-	    LOGGER.log(Level.INFO, "{0} is executed successfully", query);
-
-	}
+	String query = constructDropForeignKeyQuery(dbTable);
+	DDUtil.executeDDLQuery(query);
+	dbTable.setForeignKey(table.getForeignKey());
 
     }
 
-    private static String constructDropForeignKeyQuery(Table dbTable, Table table)
+    private static String constructDropForeignKeyQuery(Table table)
     {
 	// ALTER TABLE employees
 //	DROP FOREIGN KEY fk_department,
@@ -204,17 +318,13 @@ public class AlterOperationUtil
 
     private static void addPrimaryKey(Table dbTable, Table table) throws Exception
     {
-	String query = constructAddPrimaryKeyQuery(dbTable, table);
-	try (Connection connection = ConnectionUtil.getConnection())
-	{
-	    connection.createStatement().execute(query);
-	    dbTable.setPrimaryKey(table.getPrimaryKey());
-	    LOGGER.log(Level.INFO, "{0} is executed successfully", query);
-	}
+	String query = constructAddPrimaryKeyQuery(table);
+	DDUtil.executeDDLQuery(query);
+	dbTable.setPrimaryKey(table.getPrimaryKey());
 
     }
 
-    private static String constructAddPrimaryKeyQuery(Table dbTable, Table table)
+    private static String constructAddPrimaryKeyQuery(Table table)
     {
 	// ALTER TABLE employees
 //	ADD CONSTRAINT pk_employee_dept PRIMARY KEY (employee_id, department_id);
@@ -223,10 +333,6 @@ public class AlterOperationUtil
 	sb.append("ALTER TABLE")
 		.append(' ')
 		.append(table.getName())
-		.append(' ')
-		.append("ADD CONSTRAINT")
-		.append(' ')
-		.append(table.getPrimaryKey().getPkName())
 		.append(' ')
 		.append("PRIMARY KEY")
 		.append(' ')
@@ -243,13 +349,8 @@ public class AlterOperationUtil
     private static void dropPrimaryKey(Table dbTable, Table table) throws Exception
     {
 	String query = constructDropPrimaryKeyQuery(dbTable);
-	try (Connection connection = ConnectionUtil.getConnection())
-	{
-	    connection.createStatement().execute(query);
-	    dbTable.setPrimaryKey(table.getPrimaryKey());
-	    LOGGER.log(Level.INFO, "{0} is executed successfully", query);
-
-	}
+	DDUtil.executeDDLQuery(query);
+	dbTable.setPrimaryKey(table.getPrimaryKey());
     }
 
     private static String constructDropPrimaryKeyQuery(Table dbTable)
@@ -290,13 +391,8 @@ public class AlterOperationUtil
     private static void dropColumn(Table table, List<Column> dbTableColumns, Column column) throws Exception
     {
 	String query = constructDropColumnQuery(table, column);
-	try (Connection connection = ConnectionUtil.getConnection())
-	{
-	    connection.createStatement().execute(query);
-	    dbTableColumns.remove(column);
-	    LOGGER.log(Level.INFO, "{0} is executed successfully", query);
-
-	}
+	DDUtil.executeDDLQuery(query);
+	dbTableColumns.remove(column);
     }
 
     private static String constructDropColumnQuery(Table table, Column column)
@@ -340,19 +436,15 @@ public class AlterOperationUtil
     {
 	// TODO Auto-generated method stub
 	String query = constructAddColumnQuery(table, column);
-	try (Connection connection = ConnectionUtil.getConnection())
-	{
-	    connection.createStatement().execute(query);
-	    Column dbColumn = new Column();
-	    dbColumn.setName(column.getName());
-	    dbColumn.setAutoIncrement(column.getAutoIncrement());
-	    dbColumn.setDataType(column.getDataType());
-	    dbColumn.setMaxSize(column.getMaxSize());
-	    dbColumn.setNullable(column.getNullable());
-	    dbColumn.setDefaultValue(column.getDefaultValue());
-	    dbTableColumns.add(dbColumn);
-	    LOGGER.log(Level.INFO, "{0} is executed successfully", query);
-	}
+	DDUtil.executeDDLQuery(query);
+	Column dbColumn = new Column();
+	dbColumn.setName(column.getName());
+	dbColumn.setAutoIncrement(column.getAutoIncrement());
+	dbColumn.setDataType(column.getDataType());
+	dbColumn.setMaxSize(column.getMaxSize());
+	dbColumn.setNullable(column.getNullable());
+	dbColumn.setDefaultValue(column.getDefaultValue());
+	dbTableColumns.add(dbColumn);
 
     }
 
@@ -372,6 +464,7 @@ public class AlterOperationUtil
 			: column.getDataType() + '(' + column.getMaxSize() + ')')
 		.append(' ')
 		.append(isNull(column.getNullable()) ? "" : column.getNullable())
+		.append(' ')
 		.append(isNull(column.getAutoIncrement()) ? "" : column.getAutoIncrement())
 		.append(' ');
 	if (!isNull(column.getDefaultValue()))
@@ -409,13 +502,8 @@ public class AlterOperationUtil
     private static void checkAndDropDefaultValueOfColumn(Table table, Column dbColumn, Column column) throws Exception
     {
 	String query = constructDropDefaultValueOfColumnQuery(table, column);
-	try (Connection connection = ConnectionUtil.getConnection())
-	{
-	    connection.createStatement().execute(query);
-	    dbColumn.setDefaultValue(column.getDefaultValue());
-	    LOGGER.log(Level.INFO, "{0} is executed successfully", query);
-
-	}
+	DDUtil.executeDDLQuery(query);
+	dbColumn.setDefaultValue(column.getDefaultValue());
 
     }
 
@@ -440,17 +528,13 @@ public class AlterOperationUtil
     private static void modifyAllColumnProperties(Table table, Column dbColumn, Column column) throws Exception
     {
 	String query = constructQueryForModifyAllColumnProperties(table, column);
-	try (Connection connection = ConnectionUtil.getConnection())
-	{
-	    connection.createStatement().execute(query);
-	    dbColumn.setName(column.getName());
-	    dbColumn.setAutoIncrement(column.getAutoIncrement());
-	    dbColumn.setDataType(column.getDataType());
-	    dbColumn.setMaxSize(column.getMaxSize());
-	    dbColumn.setNullable(column.getNullable());
-	    dbColumn.setDefaultValue(column.getDefaultValue());
-	    LOGGER.log(Level.INFO, "{0} is executed successfully", query);
-	}
+	DDUtil.executeDDLQuery(query);
+	dbColumn.setName(column.getName());
+	dbColumn.setAutoIncrement(column.getAutoIncrement());
+	dbColumn.setDataType(column.getDataType());
+	dbColumn.setMaxSize(column.getMaxSize());
+	dbColumn.setNullable(column.getNullable());
+	dbColumn.setDefaultValue(column.getDefaultValue());
     }
 
     private static String constructQueryForModifyAllColumnProperties(Table table, Column column)
@@ -471,6 +555,7 @@ public class AlterOperationUtil
 			: column.getDataType() + '(' + column.getMaxSize() + ')')
 		.append(' ')
 		.append(isNull(column.getAutoIncrement()) ? "" : column.getAutoIncrement())
+		.append(' ')
 		.append(isNull(column.getNullable()) ? "" : column.getNullable())
 		.append(' ');
 	if (!isNull(column.getDefaultValue()))
@@ -485,17 +570,12 @@ public class AlterOperationUtil
     {
 	// TODO Auto-generated method stub
 	String query = constructRenameColumnQuery(table, column);
-	try (Connection connection = ConnectionUtil.getConnection())
-	{
-	    connection.createStatement().execute(query);
-	    dbColumn.setName(column.getName());
-	    dbColumn.setDataType(column.getDataType());
-	    dbColumn.setMaxSize(column.getMaxSize());
-	    dbColumn.setNullable(column.getNullable());
-	    dbColumn.setDefaultValue(column.getDefaultValue());
-	    LOGGER.log(Level.INFO, "{0} is executed successfully", query);
-
-	}
+	DDUtil.executeDDLQuery(query);
+	dbColumn.setName(column.getName());
+	dbColumn.setDataType(column.getDataType());
+	dbColumn.setMaxSize(column.getMaxSize());
+	dbColumn.setNullable(column.getNullable());
+	dbColumn.setDefaultValue(column.getDefaultValue());
 
     }
 
@@ -518,6 +598,7 @@ public class AlterOperationUtil
 			: column.getDataType() + '(' + column.getMaxSize() + ')')
 		.append(' ')
 		.append(isNull(column.getAutoIncrement()) ? "" : column.getAutoIncrement())
+		.append(' ')
 		.append(isNull(column.getNullable()) ? "" : column.getNullable())
 		.append(' ');
 	if (!isNull(column.getDefaultValue()))
@@ -532,12 +613,8 @@ public class AlterOperationUtil
     {
 	// TODO Auto-generated method stub
 	String query = constructRenameTableQuery(table);
-	try (Connection connection = ConnectionUtil.getConnection())
-	{
-	    connection.createStatement().execute(query);
-	    dbTable.setName(table.getName());
-	    LOGGER.log(Level.INFO, "{0} is executed successfully", query);
-	}
+	DDUtil.executeDDLQuery(query);
+	dbTable.setName(table.getName());
 
     }
 
@@ -554,6 +631,28 @@ public class AlterOperationUtil
 		.append(' ')
 		.append(table.getName())
 		.append(';');
+
+	return sb.toString();
+    }
+
+    public static void deleteTable(Table table)
+    {
+	String query = constructDeleteTableQuery(table);
+	try
+	{
+	    DDUtil.executeDDLQuery(query);
+	}
+	catch (Exception e)
+	{
+	    LOGGER.log(Level.INFO, "Exception occurred when deleting table", e);
+	}
+    }
+
+    private static String constructDeleteTableQuery(Table table)
+    {
+	// DROP TABLE IF EXISTS `foo`
+	StringBuilder sb = new StringBuilder();
+	sb.append("DROP TABLE IF EXISTS").append(' ').append(table.getName()).append(';');
 
 	return sb.toString();
     }

@@ -3,6 +3,8 @@ package com.ss.wealthcare.schema.builder;
 import java.util.List;
 import java.util.Objects;
 
+import com.ss.wealthcare.util.dd.DDUtil;
+
 import jakarta.xml.bind.annotation.XmlAttribute;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlRootElement;
@@ -22,6 +24,10 @@ public class Table
     private PrimaryKey tablePrimaryKey;
     @XmlElement(name = "foreign-keys")
     private ForeignKeys tableForeignKeys;
+    @XmlElement(name = "unique-keys")
+    private UniqueKeys tableUniqueKeys;
+    @XmlAttribute(name = "drop-table")
+    private boolean isDropTable;
 
     private Table typeCast(Object obj)
     {
@@ -58,6 +64,16 @@ public class Table
 	return tableColumns;
     }
 
+    public boolean getDropTable()
+    {
+	return isDropTable;
+    }
+
+    public void setDropTable(boolean dropTable)
+    {
+	this.isDropTable = dropTable;
+    }
+
     public void setColumns(List<Column> columns)
     {
 	this.tableColumns = columns;
@@ -83,11 +99,24 @@ public class Table
 	this.tableForeignKeys = foreignKeys;
     }
 
+    public UniqueKeys getUniqueKeys()
+    {
+	return tableUniqueKeys;
+    }
+
+    public void setUniqueKeys(UniqueKeys uniqueKeys)
+    {
+	this.tableUniqueKeys = uniqueKeys;
+    }
+
     @Override
     public String toString()
     {
-	return "\ntableName: " + tableName + "\noldName: " + tableOldName + "\ncolumns:\n" + tableColumns.toString()
-		+ "\nprimaryKey:\n" + tablePrimaryKey.toString() + "\nforeignKey:\n" + tableForeignKeys.toString();
+	return "\ntableName: " + tableName + "\noldName: " + tableOldName + "\ncolumns:\n"
+		+ (DDUtil.isNull(tableColumns) ? "" : tableColumns.toString()) + "\nprimaryKey:\n"
+		+ (DDUtil.isNull(tablePrimaryKey) ? "" : tablePrimaryKey.toString()) + "\nforeignKey:\n"
+		+ (DDUtil.isNull(tableForeignKeys) ? "" : tableForeignKeys.toString()) + "\nuniqueKey:\n"
+		+ (DDUtil.isNull(tableUniqueKeys) ? "" : tableUniqueKeys.toString());
     }
 
     public boolean isNameEquals(Object obj)
@@ -117,13 +146,14 @@ public class Table
 
 	return Objects.equals(tableColumns, other.getColumns()) && isNameEquals(other)
 		&& Objects.equals(tablePrimaryKey, other.getPrimaryKey())
-		&& Objects.equals(tableForeignKeys, other.getForeignKey()) && isOldNameEquals(other);
+		&& Objects.equals(tableForeignKeys, other.getForeignKey())
+		&& Objects.equals(tableUniqueKeys, other.getUniqueKeys());
     }
 
     @Override
     public int hashCode()
     {
-	return Objects.hash(tableName, tableColumns, tablePrimaryKey, tableForeignKeys, tableOldName);
+	return Objects.hash(tableName, tableColumns, tablePrimaryKey, tableForeignKeys, tableUniqueKeys);
     }
 
     public boolean isPrimaryKeyEquals(Object obj)

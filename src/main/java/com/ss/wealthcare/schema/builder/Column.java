@@ -22,7 +22,7 @@ public class Column
     private String maxSize;
     @XmlElement(name = "data-type")
     private String dataType;
-    @XmlElement(name = "old-name")
+    @XmlAttribute(name = "old-name")
     private String oldName;
     @XmlElement(name = "default")
     private String defaultValue;

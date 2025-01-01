@@ -1,5 +1,6 @@
 package com.ss.wealthcare.util.dd;
 
+import java.sql.Connection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -25,6 +26,12 @@ public class DDUtil
 	    if (isNull(table))
 	    {
 		LOGGER.log(Level.INFO, "Table is null");
+		return;
+	    }
+	    if (table.getDropTable())
+	    {
+		DDTemplateUtil.deleteDDTemplate(table);
+		AlterOperationUtil.deleteTable(table);
 		return;
 	    }
 	    DDTemplateUtil.createDDTemplate(table);
@@ -67,9 +74,13 @@ public class DDUtil
 	return isNull(tableName) || tableName.isEmpty() ? null : DBMetaDataUtil.getTableMetaInfo(tableName);
     }
 
-    public static void verifyDBStructure(Table dbTable, Table table)
+    public static void executeDDLQuery(final String query) throws Exception
     {
-
+	try (Connection connection = ConnectionUtil.getConnection())
+	{
+	    connection.createStatement().execute(query);
+	    LOGGER.log(Level.INFO, "{0} is executed successfully", query);
+	}
     }
 
 }

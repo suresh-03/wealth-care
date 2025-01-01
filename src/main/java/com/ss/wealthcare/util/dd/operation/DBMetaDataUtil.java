@@ -18,6 +18,8 @@ import com.ss.wealthcare.schema.builder.ForeignKeys.ForeignKey;
 import com.ss.wealthcare.schema.builder.ForeignKeys.ForeignKey.Reference;
 import com.ss.wealthcare.schema.builder.PrimaryKey;
 import com.ss.wealthcare.schema.builder.Table;
+import com.ss.wealthcare.schema.builder.UniqueKeys;
+import com.ss.wealthcare.schema.builder.UniqueKeys.UniqueKey;
 import com.ss.wealthcare.util.dd.ConnectionUtil;
 import com.ss.wealthcare.util.dd.DDUtil;
 
@@ -44,6 +46,7 @@ public class DBMetaDataUtil
 	    ResultSet columns = metaData.getColumns(null, DB, tableName, null);
 	    ResultSet primaryKeys = metaData.getPrimaryKeys(null, DB, tableName);
 	    ResultSet foreignKeys = metaData.getImportedKeys(null, DB, tableName);
+	    ResultSet uniqueKeys = metaData.getIndexInfo(null, DB, tableName, true, false);
 	    List<Column> columnInfo = getColumnInfo(columns, primaryKeys, foreignKeys);
 	    if (isNull(columnInfo) || columnInfo.isEmpty())
 	    {
@@ -55,6 +58,8 @@ public class DBMetaDataUtil
 	    table.setPrimaryKey((isNull(pk.getKeyColumns()) || pk.getKeyColumns().isEmpty()) ? null : pk);
 	    ForeignKeys fk = getForeignKeyInfo(foreignKeys);
 	    table.setForeignKey((isNull(fk.getForeignKeys()) || fk.getForeignKeys().isEmpty()) ? null : fk);
+	    UniqueKeys uk = getUniqueKeyInfo(uniqueKeys);
+	    table.setUniqueKeys((isNull(uk.getUniqueKeys()) || uk.getUniqueKeys().isEmpty()) ? null : uk);
 	    table.setColumns(columnInfo);
 	    return table;
 
@@ -65,6 +70,56 @@ public class DBMetaDataUtil
 	}
 	return null;
 
+    }
+
+    private static UniqueKeys getUniqueKeyInfo(ResultSet uniqueKeys) throws Exception
+    {
+
+	UniqueKeys uniqueKeysList = new UniqueKeys();
+	List<UniqueKey> list = new ArrayList<>();
+	Map<String, UniqueKey> ukNameVsKeyColumn = new HashMap<>();
+
+	while (uniqueKeys.next())
+	{
+
+	    String ukColumnName = uniqueKeys.getString("COLUMN_NAME");
+	    String ukName = uniqueKeys.getString("INDEX_NAME");
+	    boolean nonUnique = uniqueKeys.getBoolean("NON_UNIQUE");
+	    if (!DDUtil.isNull(ukName) && ukName.equals("PRIMARY"))
+	    {
+		continue;
+	    }
+	    if (!nonUnique)
+	    {
+		if (ukNameVsKeyColumn.containsKey(ukName))
+		{
+		    UniqueKey uk = ukNameVsKeyColumn.get(ukName);
+
+		    uk.getKeyColumns().add(ukColumnName);
+		}
+		else
+		{
+		    UniqueKey uk = new UniqueKey();
+
+		    uk.setUkName(ukName);
+		    uk.setKeyColumns(new ArrayList<String>()
+		    {
+			{
+			    add(ukColumnName);
+			}
+		    });
+
+		    ukNameVsKeyColumn.put(ukName, uk);
+		    list.add(uk);
+		}
+
+	    }
+	}
+
+	uniqueKeysList.setUkNameVsUniqueKey(ukNameVsKeyColumn);
+	uniqueKeysList.setUniqueKeys(list);
+
+	return uniqueKeysList;
     }
 
     private static List<Column> getColumnInfo(ResultSet columns, ResultSet primaryKeys, ResultSet foreignKeys)
@@ -100,15 +155,12 @@ public class DBMetaDataUtil
     {
 	PrimaryKey primaryKeyInfo = new PrimaryKey();
 	List<String> pkColumns = new ArrayList<>();
-	String pkName = "";
 
 	while (primaryKeys.next())
 	{
 	    String pkColumnName = primaryKeys.getString("COLUMN_NAME");
-	    pkName = primaryKeys.getString("PK_NAME");
 	    pkColumns.add(pkColumnName);
 	}
-	primaryKeyInfo.setPkName(pkName);
 	primaryKeyInfo.setKeyColumns(pkColumns);
 	return primaryKeyInfo;
 
@@ -118,6 +170,7 @@ public class DBMetaDataUtil
     {
 
 	ForeignKeys foreignKeysList = new ForeignKeys();
+	List<ForeignKey> list = new ArrayList<>();
 	Map<String, ForeignKey> fkNameVsKeyColumn = new HashMap<>();
 
 	while (foreignKeys.next())
@@ -158,17 +211,19 @@ public class DBMetaDataUtil
 		fk.setFKReference(reference);
 
 		fkNameVsKeyColumn.put(fkName, fk);
+		list.add(fk);
 	    }
 
 	}
 
 	foreignKeysList.setFkNameVsForeignKey(fkNameVsKeyColumn);
+	foreignKeysList.setForeignKeys(list);
 
 	return foreignKeysList;
     }
 
     public static void main(String args[]) throws Exception
     {
-	System.out.println(getTableMetaInfo("order_items"));
+	System.out.println(getTableMetaInfo("User"));
     }
 }

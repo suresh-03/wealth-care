@@ -1,31 +1,60 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<table name="User" display-name="user" old-name="Users">
-
-	<column name="USER_ID">
-		<data-type>INT</data-type>
-		<auto-increment>AUTO_INCREMENT</auto-increment>
-	</column>
-	<column name="USER_NAME">
-		<data-type>VARCHAR</data-type>
-		<max-size>400</max-size>
-		<nullable>NOT NULL</nullable>
-	</column>
-	<column name="PASSWORD">
-		<data-type>VARCHAR</data-type>
-		<max-size>300</max-size>
-		<nullable>NOT NULL</nullable>
-	</column>
-	<column name="EMAIL">
-		<data-type>VARCHAR</data-type>
-		<max-size>300</max-size>
-		<nullable>NOT NULL</nullable>
-	</column>
-	<column name="GENDER">
-		<data-type>VARCHAR</data-type>
-		<max-size>300</max-size>
-		<nullable>NOT NULL</nullable>
-	</column>
-	<primary-key pk-name="pk_User">
-		<key-column>USER_ID</key-column>
-	</primary-key>
-</table>
+<tables>
+	<table name="Users" display-name="user" old-name="User"
+		drop-table="false">
+		<column name="USER_ID" old-name="ID">
+			<data-type>INT</data-type>
+			<auto-increment>AUTO_INCREMENT</auto-increment>
+		</column>
+		<column name="USER_NAME">
+			<data-type>VARCHAR</data-type>
+			<max-size>400</max-size>
+			<nullable>NOT NULL</nullable>
+		</column>
+		<column name="PASSWORD">
+			<data-type>VARCHAR</data-type>
+			<max-size>300</max-size>
+			<nullable>NOT NULL</nullable>
+		</column>
+		<column name="EMAIL">
+			<data-type>VARCHAR</data-type>
+			<max-size>300</max-size>
+			<nullable>NOT NULL</nullable>
+		</column>
+		<column name="GENDER">
+			<data-type>VARCHAR</data-type>
+			<max-size>300</max-size>
+			<nullable>NOT NULL</nullable>
+		</column>
+		<primary-key>
+			<key-column>USER_ID</key-column>
+		</primary-key>
+		<unique-keys>
+			<unique-key uk-name="uk_EMAIL">
+				<key-column>EMAIL</key-column>
+			</unique-key>
+		</unique-keys>
+	</table>
+	<table name="Orders">
+		<column name="ORDER_ID">
+			<data-type>BIGINT</data-type>
+			<nullable>NOT NULL</nullable>
+			<auto-increment>AUTO_INCREMENT</auto-increment>
+		</column>
+		<column name="USER_ID">
+			<data-type>INT</data-type>
+			<nullable>NOT NULL</nullable>
+		</column>
+		<primary-key>
+			<key-column>ORDER_ID</key-column>
+		</primary-key>
+		<foreign-keys>
+			<foreign-key fk-name="fk_Orders">
+				<key-column>USER_ID</key-column>
+				<reference table="Users">
+					<key-column>USER_ID</key-column>
+				</reference>
+			</foreign-key>
+		</foreign-keys>
+	</table>
+</tables>
